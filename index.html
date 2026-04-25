@@ -1,0 +1,1326 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>美团·周末活动规划 Agent</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --primary: #1E40AF;
+    --primary-light: #3B82F6;
+    --primary-bg: #EFF6FF;
+    --accent: #F59E0B;
+    --accent-bg: #FFFBEB;
+    --success: #059669;
+    --success-bg: #ECFDF5;
+    --danger: #DC2626;
+    --danger-bg: #FEF2F2;
+    --text-1: #111827;
+    --text-2: #374151;
+    --text-3: #6B7280;
+    --text-4: #9CA3AF;
+    --bg: #F8FAFC;
+    --surface: #FFFFFF;
+    --border: #E5E7EB;
+    --border-focus: #3B82F6;
+    --radius: 12px;
+    --radius-sm: 8px;
+    --shadow: 0 2px 12px rgba(30,64,175,0.08);
+    --font-size-base: 16px;
+    --font-scale: 1;
+  }
+  [data-size="large"] { --font-scale: 1.2; }
+  [data-size="xlarge"] { --font-scale: 1.45; }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Noto Sans SC', -apple-system, 'PingFang SC', sans-serif;
+    font-size: calc(var(--font-size-base) * var(--font-scale));
+    background: var(--bg);
+    color: var(--text-1);
+    line-height: 1.7;
+    min-height: 100vh;
+  }
+
+  /* NAV */
+  nav {
+    position: sticky; top: 0; z-index: 100;
+    background: var(--surface);
+    border-bottom: 1.5px solid var(--border);
+    padding: 0 24px;
+    display: flex; align-items: center; justify-content: space-between;
+    height: 60px;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+  }
+  .nav-logo {
+    display: flex; align-items: center; gap: 10px;
+    font-weight: 700; font-size: calc(1.1rem * var(--font-scale));
+    color: var(--primary);
+  }
+  .nav-logo .logo-dot {
+    width: 32px; height: 32px; border-radius: 10px;
+    background: var(--primary);
+    display: flex; align-items: center; justify-content: center;
+    color: #fff; font-size: 14px; font-weight: 700;
+  }
+  .nav-controls { display: flex; align-items: center; gap: 10px; }
+  .nav-btn {
+    display: flex; align-items: center; gap: 6px;
+    padding: 6px 14px; border-radius: var(--radius-sm);
+    border: 1.5px solid var(--border); background: transparent;
+    font-family: inherit; font-size: calc(0.82rem * var(--font-scale));
+    color: var(--text-2); cursor: pointer;
+    transition: all 0.2s ease;
+  }
+  .nav-btn:hover { background: var(--primary-bg); border-color: var(--primary); color: var(--primary); }
+  .nav-btn.active { background: var(--primary); border-color: var(--primary); color: #fff; }
+  .font-size-group { display: flex; border: 1.5px solid var(--border); border-radius: var(--radius-sm); overflow: hidden; }
+  .font-size-group button {
+    border: none; background: transparent; padding: 5px 10px;
+    font-family: inherit; cursor: pointer; font-weight: 500;
+    color: var(--text-3); transition: all 0.2s;
+    border-right: 1px solid var(--border);
+  }
+  .font-size-group button:last-child { border-right: none; }
+  .font-size-group button.active { background: var(--primary); color: #fff; }
+  .font-size-group button:hover:not(.active) { background: var(--primary-bg); color: var(--primary); }
+
+  /* LAYOUT */
+  .app-layout {
+    max-width: 1280px; margin: 0 auto;
+    display: grid; grid-template-columns: 1fr 400px;
+    gap: 0; min-height: calc(100vh - 60px);
+  }
+  @media (max-width: 960px) {
+    .app-layout { grid-template-columns: 1fr; }
+    .sidebar { display: none; }
+  }
+
+  /* LEFT PANEL */
+  .main-panel {
+    padding: 28px 28px 0;
+    display: flex; flex-direction: column;
+    min-height: calc(100vh - 60px);
+  }
+
+  /* HERO INPUT AREA */
+  .hero-section {
+    background: linear-gradient(135deg, #EFF6FF 0%, #FFFBEB 100%);
+    border: 1.5px solid #BFDBFE;
+    border-radius: 16px;
+    padding: 28px;
+    margin-bottom: 24px;
+    position: relative; overflow: hidden;
+  }
+  .hero-section::before {
+    content: ''; position: absolute; top: -30px; right: -30px;
+    width: 120px; height: 120px; border-radius: 50%;
+    background: rgba(59,130,246,0.06);
+  }
+  .hero-title {
+    font-size: calc(1rem * var(--font-scale));
+    color: var(--primary); font-weight: 500; margin-bottom: 14px;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .hero-title .pulse-dot {
+    width: 8px; height: 8px; border-radius: 50%; background: var(--success);
+    animation: pulse-green 2s infinite;
+  }
+  @keyframes pulse-green {
+    0%,100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.6; transform: scale(1.3); }
+  }
+
+  .input-wrapper {
+    display: flex; gap: 10px; align-items: flex-start;
+    position: relative;
+  }
+  .input-box {
+    flex: 1; position: relative;
+  }
+  textarea#main-input {
+    width: 100%; min-height: 72px; max-height: 160px;
+    padding: 14px 16px; padding-right: 44px;
+    border: 2px solid var(--border);
+    border-radius: var(--radius); resize: none;
+    font-family: inherit; font-size: calc(1rem * var(--font-scale));
+    color: var(--text-1); background: var(--surface);
+    transition: border-color 0.2s, box-shadow 0.2s, transform 0.15s;
+    outline: none; line-height: 1.6;
+  }
+  textarea#main-input:focus {
+    border-color: var(--border-focus);
+    box-shadow: 0 0 0 3px rgba(59,130,246,0.15);
+    transform: scale(1.005);
+  }
+  textarea#main-input::placeholder { color: var(--text-4); }
+
+  .mic-btn {
+    position: absolute; right: 10px; top: 10px;
+    width: 40px; height: 40px; border-radius: 50%;
+    border: none; background: var(--primary-bg);
+    color: var(--primary); cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    transition: all 0.2s; font-size: 17px;
+  }
+  .mic-btn:hover { background: var(--primary); color: #fff; }
+  .mic-btn.recording {
+    background: var(--danger); color: #fff;
+    animation: mic-pulse 1s infinite;
+  }
+  @keyframes mic-pulse {
+    0%,100% { box-shadow: 0 0 0 0 rgba(220,38,38,0.4); }
+    50% { box-shadow: 0 0 0 8px rgba(220,38,38,0); }
+  }
+
+  .send-btn {
+    min-width: 80px; height: 48px; padding: 0 20px;
+    background: var(--primary); color: #fff;
+    border: none; border-radius: var(--radius);
+    font-family: inherit; font-size: calc(0.95rem * var(--font-scale));
+    font-weight: 500; cursor: pointer;
+    display: flex; align-items: center; justify-content: center; gap: 6px;
+    transition: all 0.2s;
+    white-space: nowrap;
+  }
+  .send-btn:hover { background: #1D4ED8; transform: translateY(-1px); box-shadow: 0 4px 12px rgba(30,64,175,0.3); }
+  .send-btn:active { transform: translateY(0); }
+  .send-btn:disabled { opacity: 0.55; cursor: not-allowed; transform: none; }
+
+  /* QUICK TAGS */
+  .quick-tags { margin-top: 12px; display: flex; gap: 8px; flex-wrap: wrap; }
+  .quick-tag {
+    padding: 5px 13px; border-radius: 20px;
+    border: 1.5px solid var(--border); background: var(--surface);
+    font-size: calc(0.82rem * var(--font-scale)); color: var(--text-2);
+    cursor: pointer; transition: all 0.18s; font-family: inherit;
+  }
+  .quick-tag:hover { border-color: var(--primary); color: var(--primary); background: var(--primary-bg); }
+
+  /* SOUND WAVE INDICATOR */
+  .sound-wave {
+    display: none; align-items: center; gap: 3px;
+    padding: 8px 14px; background: var(--danger-bg);
+    border-radius: 20px; margin-top: 10px;
+  }
+  .sound-wave.active { display: flex; }
+  .sound-wave span { font-size: calc(0.82rem * var(--font-scale)); color: var(--danger); font-weight: 500; margin-right: 6px; }
+  .wave-bar {
+    width: 4px; border-radius: 2px; background: var(--danger);
+    animation: wave-anim 0.8s ease-in-out infinite;
+  }
+  .wave-bar:nth-child(2) { animation-delay: 0.1s; }
+  .wave-bar:nth-child(3) { animation-delay: 0.2s; }
+  .wave-bar:nth-child(4) { animation-delay: 0.3s; }
+  .wave-bar:nth-child(5) { animation-delay: 0.15s; }
+  @keyframes wave-anim {
+    0%,100% { height: 6px; }
+    50% { height: 18px; }
+  }
+
+  /* CHAT AREA */
+  .chat-area {
+    flex: 1; padding-bottom: 32px;
+    display: flex; flex-direction: column; gap: 18px;
+  }
+
+  /* MESSAGES */
+  .msg {
+    display: flex; gap: 12px; align-items: flex-start;
+    animation: msg-in 0.35s ease both;
+  }
+  @keyframes msg-in {
+    from { opacity: 0; transform: translateY(12px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  .msg.user { flex-direction: row-reverse; }
+  .msg-avatar {
+    width: 38px; height: 38px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 16px; flex-shrink: 0; font-weight: 600;
+  }
+  .msg.user .msg-avatar { background: var(--primary); color: #fff; }
+  .msg.ai .msg-avatar { background: var(--accent-bg); border: 1.5px solid #FCD34D; font-size: 18px; }
+  .msg-bubble {
+    max-width: 85%; padding: 14px 18px;
+    border-radius: var(--radius); line-height: 1.7;
+    font-size: calc(0.95rem * var(--font-scale));
+  }
+  .msg.user .msg-bubble {
+    background: var(--primary); color: #fff;
+    border-radius: var(--radius) 4px var(--radius) var(--radius);
+  }
+  .msg.ai .msg-bubble {
+    background: var(--surface); color: var(--text-1);
+    border: 1.5px solid var(--border);
+    border-radius: 4px var(--radius) var(--radius) var(--radius);
+    box-shadow: var(--shadow);
+  }
+
+  /* TYPING INDICATOR */
+  .typing-indicator {
+    display: flex; align-items: center; gap: 5px; padding: 14px 18px;
+    background: var(--surface); border: 1.5px solid var(--border);
+    border-radius: 4px var(--radius) var(--radius) var(--radius);
+    width: fit-content; box-shadow: var(--shadow);
+  }
+  .typing-dot {
+    width: 8px; height: 8px; border-radius: 50%; background: var(--text-4);
+    animation: typing 1.2s ease-in-out infinite;
+  }
+  .typing-dot:nth-child(2) { animation-delay: 0.2s; }
+  .typing-dot:nth-child(3) { animation-delay: 0.4s; }
+  @keyframes typing {
+    0%,80%,100% { transform: translateY(0); opacity: 0.5; }
+    40% { transform: translateY(-6px); opacity: 1; }
+  }
+
+  /* PLAN CARDS */
+  .plan-cards { display: flex; flex-direction: column; gap: 12px; margin-top: 12px; }
+  .plan-card {
+    background: var(--surface); border: 1.5px solid var(--border);
+    border-radius: var(--radius); overflow: hidden;
+    box-shadow: var(--shadow);
+    animation: card-in 0.4s ease both;
+  }
+  .plan-card:nth-child(1) { animation-delay: 0.05s; }
+  .plan-card:nth-child(2) { animation-delay: 0.15s; }
+  .plan-card:nth-child(3) { animation-delay: 0.25s; }
+  @keyframes card-in {
+    from { opacity: 0; transform: translateY(16px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  .card-header {
+    display: flex; align-items: center; gap: 12px;
+    padding: 14px 16px; border-bottom: 1.5px solid var(--border);
+  }
+  .card-step {
+    width: 36px; height: 36px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 700; font-size: 14px; flex-shrink: 0;
+  }
+  .step-1 { background: #DBEAFE; color: #1D4ED8; }
+  .step-2 { background: #D1FAE5; color: #065F46; }
+  .step-3 { background: #FEF3C7; color: #92400E; }
+  .card-title { font-weight: 600; font-size: calc(0.95rem * var(--font-scale)); color: var(--text-1); }
+  .card-meta { font-size: calc(0.8rem * var(--font-scale)); color: var(--text-3); margin-top: 2px; }
+  .card-body { padding: 14px 16px; }
+  .card-desc { font-size: calc(0.88rem * var(--font-scale)); color: var(--text-2); line-height: 1.6; }
+  .card-tags { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 10px; }
+  .tag {
+    padding: 3px 10px; border-radius: 12px;
+    font-size: calc(0.75rem * var(--font-scale)); font-weight: 500;
+  }
+  .tag-blue { background: #DBEAFE; color: #1D4ED8; }
+  .tag-green { background: #D1FAE5; color: #065F46; }
+  .tag-amber { background: #FEF3C7; color: #92400E; }
+  .tag-red { background: #FEE2E2; color: #991B1B; }
+  .card-info-row {
+    display: flex; gap: 16px; margin-top: 12px; padding-top: 10px;
+    border-top: 1px solid var(--border);
+    font-size: calc(0.8rem * var(--font-scale));
+  }
+  .info-item { display: flex; align-items: center; gap: 5px; color: var(--text-3); }
+
+  /* ACTION BUTTONS */
+  .action-bar {
+    display: flex; gap: 10px; margin-top: 16px; flex-wrap: wrap;
+  }
+  .action-btn {
+    flex: 1; min-width: 100px; padding: 12px 16px;
+    border-radius: var(--radius); border: 2px solid;
+    font-family: inherit; font-size: calc(0.9rem * var(--font-scale));
+    font-weight: 600; cursor: pointer;
+    display: flex; align-items: center; justify-content: center; gap: 7px;
+    transition: all 0.2s;
+  }
+  .btn-confirm {
+    background: var(--success); border-color: var(--success); color: #fff;
+  }
+  .btn-confirm:hover { background: #047857; border-color: #047857; transform: translateY(-1px); box-shadow: 0 4px 12px rgba(5,150,105,0.3); }
+  .btn-modify {
+    background: var(--surface); border-color: var(--primary); color: var(--primary);
+  }
+  .btn-modify:hover { background: var(--primary-bg); }
+  .btn-share {
+    background: var(--surface); border-color: var(--accent); color: #92400E;
+  }
+  .btn-share:hover { background: var(--accent-bg); }
+
+  /* EXECUTION PROGRESS */
+  .exec-list { display: flex; flex-direction: column; gap: 8px; margin-top: 12px; }
+  .exec-item {
+    display: flex; align-items: center; gap: 12px;
+    padding: 10px 14px; background: var(--surface);
+    border: 1.5px solid var(--border); border-radius: var(--radius-sm);
+    font-size: calc(0.88rem * var(--font-scale));
+    animation: exec-in 0.3s ease both;
+  }
+  @keyframes exec-in {
+    from { opacity: 0; transform: translateX(-10px); }
+    to { opacity: 1; transform: translateX(0); }
+  }
+  .exec-item:nth-child(1) { animation-delay: 0.1s; }
+  .exec-item:nth-child(2) { animation-delay: 0.4s; }
+  .exec-item:nth-child(3) { animation-delay: 0.7s; }
+  .exec-item:nth-child(4) { animation-delay: 1s; }
+  .exec-icon { font-size: 20px; }
+  .exec-name { flex: 1; color: var(--text-1); font-weight: 500; }
+  .exec-status {
+    font-size: calc(0.78rem * var(--font-scale)); padding: 3px 10px;
+    border-radius: 12px; font-weight: 600;
+  }
+  .status-ok { background: var(--success-bg); color: var(--success); }
+  .status-wait { background: var(--primary-bg); color: var(--primary); }
+  .status-pending { background: #F3F4F6; color: var(--text-4); }
+
+  /* SIDEBAR */
+  .sidebar {
+    border-left: 1.5px solid var(--border);
+    padding: 24px 20px;
+    background: var(--surface);
+    display: flex; flex-direction: column; gap: 20px;
+    overflow-y: auto; max-height: calc(100vh - 60px);
+    position: sticky; top: 60px;
+  }
+  .sidebar-section h3 {
+    font-size: calc(0.82rem * var(--font-scale));
+    font-weight: 700; color: var(--text-3);
+    text-transform: uppercase; letter-spacing: 0.06em;
+    margin-bottom: 12px;
+  }
+
+  /* TIMELINE */
+  .timeline { position: relative; padding-left: 20px; }
+  .timeline::before {
+    content: ''; position: absolute; left: 6px; top: 8px;
+    width: 2px; bottom: 8px;
+    background: linear-gradient(to bottom, var(--primary), var(--accent));
+    border-radius: 2px;
+  }
+  .tl-item { position: relative; margin-bottom: 16px; }
+  .tl-dot {
+    position: absolute; left: -20px; top: 4px;
+    width: 14px; height: 14px; border-radius: 50%;
+    border: 2.5px solid var(--surface);
+  }
+  .tl-dot.active { background: var(--primary); box-shadow: 0 0 0 3px rgba(30,64,175,0.2); }
+  .tl-dot.upcoming { background: var(--border); }
+  .tl-time { font-size: calc(0.75rem * var(--font-scale)); color: var(--text-3); font-weight: 500; }
+  .tl-name { font-size: calc(0.88rem * var(--font-scale)); color: var(--text-1); font-weight: 500; margin-top: 2px; }
+  .tl-sub { font-size: calc(0.78rem * var(--font-scale)); color: var(--text-3); margin-top: 1px; }
+
+  /* MAP PLACEHOLDER */
+  .map-placeholder {
+    height: 180px; background: #EFF6FF;
+    border-radius: var(--radius); border: 1.5px solid #BFDBFE;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center; gap: 8px;
+    color: var(--primary); font-size: calc(0.88rem * var(--font-scale));
+    overflow: hidden; position: relative;
+  }
+  .map-grid {
+    position: absolute; inset: 0;
+    background-image:
+      linear-gradient(rgba(59,130,246,0.08) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(59,130,246,0.08) 1px, transparent 1px);
+    background-size: 20px 20px;
+  }
+  .map-pin { font-size: 28px; z-index: 1; animation: pin-bounce 2s ease-in-out infinite; }
+  @keyframes pin-bounce {
+    0%,100% { transform: translateY(0); }
+    50% { transform: translateY(-6px); }
+  }
+
+  /* WEATHER / INFO CARDS */
+  .info-card {
+    background: var(--bg); border: 1.5px solid var(--border);
+    border-radius: var(--radius-sm); padding: 12px 14px;
+    display: flex; align-items: center; gap: 12px;
+  }
+  .info-card-icon { font-size: 24px; }
+  .info-card-label { font-size: calc(0.78rem * var(--font-scale)); color: var(--text-3); }
+  .info-card-value { font-size: calc(0.92rem * var(--font-scale)); font-weight: 600; color: var(--text-1); }
+
+  /* SHARE MODAL */
+  .modal-overlay {
+    display: none; position: fixed; inset: 0;
+    background: rgba(0,0,0,0.5); z-index: 200;
+    align-items: center; justify-content: center;
+  }
+  .modal-overlay.open { display: flex; }
+  .modal {
+    background: var(--surface); border-radius: 16px;
+    padding: 28px; max-width: 480px; width: 90%;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.2);
+    animation: modal-in 0.25s ease;
+  }
+  @keyframes modal-in {
+    from { opacity: 0; transform: scale(0.95) translateY(10px); }
+    to { opacity: 1; transform: scale(1) translateY(0); }
+  }
+  .modal h2 { font-size: calc(1.1rem * var(--font-scale)); margin-bottom: 14px; color: var(--text-1); }
+  .share-text {
+    background: var(--bg); border: 1.5px solid var(--border);
+    border-radius: var(--radius-sm); padding: 14px;
+    font-size: calc(0.88rem * var(--font-scale)); color: var(--text-2);
+    line-height: 1.8; margin-bottom: 16px;
+  }
+  .modal-actions { display: flex; gap: 10px; }
+  .modal-btn {
+    flex: 1; padding: 11px; border-radius: var(--radius-sm);
+    font-family: inherit; font-size: calc(0.9rem * var(--font-scale));
+    font-weight: 600; cursor: pointer; border: 2px solid;
+    transition: all 0.18s;
+  }
+  .modal-btn.primary { background: var(--primary); border-color: var(--primary); color: #fff; }
+  .modal-btn.primary:hover { background: #1D4ED8; }
+  .modal-btn.secondary { background: var(--surface); border-color: var(--border); color: var(--text-2); }
+  .modal-btn.secondary:hover { border-color: var(--primary); color: var(--primary); }
+
+  /* ACCESSIBILITY BANNER */
+  .a11y-banner {
+    background: var(--primary); color: #fff;
+    padding: 6px 20px;
+    font-size: calc(0.8rem * var(--font-scale));
+    display: flex; align-items: center; justify-content: center; gap: 10px;
+    display: none;
+  }
+  body.senior-mode .a11y-banner { display: flex; }
+  body.senior-mode { --font-size-base: 18px; }
+  body.senior-mode .hero-section { padding: 32px; }
+  body.senior-mode .send-btn { height: 56px; }
+  body.senior-mode .action-btn { padding: 16px 20px; }
+
+  /* SCROLL TO BOTTOM */
+  .chat-area::-webkit-scrollbar { width: 4px; }
+  .chat-area::-webkit-scrollbar-track { background: transparent; }
+  .chat-area::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+  /* FOCUS STYLES */
+  :focus-visible {
+    outline: 3px solid var(--border-focus);
+    outline-offset: 2px;
+    border-radius: 4px;
+  }
+
+  .sr-only {
+    position: absolute; width: 1px; height: 1px;
+    padding: 0; margin: -1px; overflow: hidden;
+    clip: rect(0,0,0,0); border: 0;
+  }
+
+  /* RIPPLE */
+  @keyframes ripple {
+    to { transform: scale(4); opacity: 0; }
+  }
+  .ripple-effect {
+    position: absolute; border-radius: 50%;
+    background: rgba(255,255,255,0.4); transform: scale(0);
+    animation: ripple 0.5s linear; pointer-events: none;
+  }
+</style>
+</head>
+<body>
+
+<h2 class="sr-only">美团周末活动规划 Agent — 本地场景出行智能助手</h2>
+
+<div class="a11y-banner" role="banner" aria-live="polite">
+  🔆 老年人模式已开启 — 字体放大，操作更简单
+  <button onclick="toggleSeniorMode()" style="background:rgba(255,255,255,0.2);border:1px solid rgba(255,255,255,0.5);color:#fff;padding:3px 10px;border-radius:6px;cursor:pointer;font-family:inherit;font-size:inherit;">关闭</button>
+</div>
+
+<nav role="navigation" aria-label="主导航">
+  <div class="nav-logo">
+    <div class="logo-dot" aria-hidden="true">美</div>
+    周末出行规划
+  </div>
+  <div class="nav-controls">
+    <div class="font-size-group" role="group" aria-label="字体大小">
+      <button class="active" data-size-target="normal" onclick="setFontSize('normal',this)" title="标准字体" aria-pressed="true">A</button>
+      <button data-size-target="large" onclick="setFontSize('large',this)" title="大字体" aria-pressed="false" style="font-size:18px;">A</button>
+      <button data-size-target="xlarge" onclick="setFontSize('xlarge',this)" title="超大字体" aria-pressed="false" style="font-size:22px;">A</button>
+    </div>
+    <button class="nav-btn" id="senior-btn" onclick="toggleSeniorMode()" aria-label="切换老年人模式">
+      <span aria-hidden="true">👴</span> 老年人模式
+    </button>
+    <button class="nav-btn" onclick="speakText('您好，欢迎使用美团周末出行规划助手。请告诉我您想怎么玩。')" aria-label="语音朗读欢迎词">
+      <span aria-hidden="true">🔊</span> 朗读
+    </button>
+  </div>
+</nav>
+
+<div class="app-layout">
+  <!-- MAIN PANEL -->
+  <main class="main-panel" role="main">
+    <!-- HERO INPUT -->
+    <section class="hero-section" aria-labelledby="hero-label">
+      <div class="hero-title" id="hero-label">
+        <div class="pulse-dot" aria-hidden="true"></div>
+        告诉我您今天想怎么玩 ✨
+      </div>
+      <div class="input-wrapper">
+        <div class="input-box">
+          <textarea
+            id="main-input"
+            aria-label="活动需求输入框，可输入文字或点击麦克风使用语音"
+            placeholder="例如：想和老婆孩子（孩子5岁）下午出去玩，别太远，孩子喜欢玩水，大人想吃个好的…"
+            rows="3"
+            onkeydown="handleKey(event)"
+          ></textarea>
+          <button class="mic-btn" id="mic-btn" onclick="toggleMic()" aria-label="语音输入" aria-pressed="false" title="点击开始语音输入">
+            🎤
+          </button>
+        </div>
+        <button class="send-btn" id="send-btn" onclick="sendMessage()" aria-label="发送规划请求">
+          <span aria-hidden="true">✦</span> 规划
+        </button>
+      </div>
+      <div class="sound-wave" id="sound-wave" role="status" aria-live="polite" aria-label="正在录音">
+        <span>正在录音…</span>
+        <div class="wave-bar" style="height:6px" aria-hidden="true"></div>
+        <div class="wave-bar" style="height:6px" aria-hidden="true"></div>
+        <div class="wave-bar" style="height:6px" aria-hidden="true"></div>
+        <div class="wave-bar" style="height:6px" aria-hidden="true"></div>
+        <div class="wave-bar" style="height:6px" aria-hidden="true"></div>
+      </div>
+      <div class="quick-tags" role="group" aria-label="快速选择场景">
+        <button class="quick-tag" onclick="fillQuick('家庭亲子，孩子5岁，下午出游，别太远')" aria-label="亲子家庭场景">👨‍👩‍👧 亲子家庭</button>
+        <button class="quick-tag" onclick="fillQuick('4个朋友一起，2男2女，想逛逛吃点好的')" aria-label="朋友聚会场景">👫 朋友聚会</button>
+        <button class="quick-tag" onclick="fillQuick('两个人约会，想看个展或者逛citywalk')" aria-label="情侣约会场景">💑 情侣约会</button>
+        <button class="quick-tag" onclick="fillQuick('老人和孩子一起，爬山或公园，走动少一点')" aria-label="长辈陪伴场景">🧓 陪伴长辈</button>
+      </div>
+    </section>
+
+    <!-- CHAT AREA -->
+    <div class="chat-area" id="chat-area" role="log" aria-live="polite" aria-label="对话区域">
+      <!-- Welcome Message -->
+      <div class="msg ai" role="article" aria-label="助手消息">
+        <div class="msg-avatar" aria-hidden="true">🤖</div>
+        <div class="msg-bubble">
+          您好！我是美团周末出行规划助手 🎉<br><br>
+          我能帮您规划 <strong>4-6小时</strong> 的本地出游方案，包括：<br>
+          📍 活动场所推荐 → 🍜 餐厅预约 → 🎪 后续安排<br><br>
+          直接说想法就好，比如「带孩子出去玩」或「朋友聚会找个好地方」，我来搞定一切。<br><br>
+          <em style="color:var(--text-3);font-size:0.92em;">支持语音输入，点右上角🎤即可</em>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <!-- SIDEBAR -->
+  <aside class="sidebar" role="complementary" aria-label="行程信息面板">
+    <div class="sidebar-section">
+      <h3>今日行程</h3>
+      <div class="timeline" id="timeline" aria-label="行程时间轴">
+        <div class="tl-item">
+          <div class="tl-dot upcoming" aria-label="待定"></div>
+          <div class="tl-time">等待规划中…</div>
+          <div class="tl-name" style="color:var(--text-4);">告诉我您的需求开始规划</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sidebar-section">
+      <h3>地图预览</h3>
+      <div class="map-placeholder" role="img" aria-label="地图预览区域，将显示行程地点">
+        <div class="map-grid" aria-hidden="true"></div>
+        <div class="map-pin" aria-hidden="true">📍</div>
+        <span>行程地点将在此显示</span>
+      </div>
+    </div>
+
+    <div class="sidebar-section">
+      <h3>出行参考</h3>
+      <div style="display:flex;flex-direction:column;gap:8px;">
+        <div class="info-card" role="status">
+          <div class="info-card-icon" aria-hidden="true">☀️</div>
+          <div>
+            <div class="info-card-label">今日天气</div>
+            <div class="info-card-value" id="weather-info">晴，26°C 适合出行</div>
+          </div>
+        </div>
+        <div class="info-card" role="status">
+          <div class="info-card-icon" aria-hidden="true">🕐</div>
+          <div>
+            <div class="info-card-label">当前时间</div>
+            <div class="info-card-value" id="current-time">--:--</div>
+          </div>
+        </div>
+        <div class="info-card" role="status">
+          <div class="info-card-icon" aria-hidden="true">🚇</div>
+          <div>
+            <div class="info-card-label">出行建议</div>
+            <div class="info-card-value">地铁/公交优先</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sidebar-section">
+      <h3>快捷功能</h3>
+      <div style="display:flex;flex-direction:column;gap:8px;">
+        <button class="nav-btn" style="width:100%;justify-content:flex-start;" onclick="clearChat()" aria-label="清空对话重新开始">
+          🔄 重新规划
+        </button>
+        <button class="nav-btn" style="width:100%;justify-content:flex-start;" onclick="showShareModal()" aria-label="分享行程计划">
+          📤 分享行程
+        </button>
+        <button class="nav-btn" style="width:100%;justify-content:flex-start;" onclick="speakLastPlan()" aria-label="语音朗读当前行程">
+          🔊 朗读行程
+        </button>
+      </div>
+    </div>
+  </aside>
+</div>
+
+<!-- SHARE MODAL -->
+<div class="modal-overlay" id="share-modal" role="dialog" aria-modal="true" aria-labelledby="share-title" onclick="closeModal(event)">
+  <div class="modal">
+    <h2 id="share-title">📤 分享行程计划</h2>
+    <div class="share-text" id="share-content" aria-label="行程摘要文字">
+      搞定了！下午 2:00 出发，先去世纪公园玩2小时（儿童游乐区超棒），4:30 去外婆家菜馆吃上海本帮菜（已预约靠窗位置），6:30 顺路去淮海路citywalk逛逛。预计晚上8点回家，总费用约 ¥280。
+    </div>
+    <div class="modal-actions">
+      <button class="modal-btn primary" onclick="copyShareText()" aria-label="复制行程文字">📋 复制文字</button>
+      <button class="modal-btn secondary" onclick="document.getElementById('share-modal').classList.remove('open')" aria-label="关闭分享弹窗">关闭</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── MOCK DATA ──
+const MOCK_PLACES = {
+  family: [
+    { name: "世纪公园", type: "公园", time: "14:00 - 16:00", duration: "2小时", icon: "🌳", tags: ["亲子", "免费", "宽敞"], desc: "上海最大城市公园，儿童游乐设施齐全，适合5岁宝宝。", rating: "4.7", distance: "3.2km" },
+    { name: "外婆家菜馆·浦东店", type: "餐厅", time: "16:30 - 18:00", duration: "1.5小时", icon: "🍜", tags: ["本帮菜", "儿童友好", "可预约"], desc: "人气上海本帮菜，宝宝饭可免费加热。当前无需等位，已帮您预留4人靠窗位。", rating: "4.8", distance: "0.8km", badge: "✅ 无需排队" },
+    { name: "K11购物艺术中心", type: "商场", time: "18:30 - 19:30", duration: "1小时", icon: "🛍️", tags: ["室内", "亲子", "艺术"], desc: "结合艺术与商业，负一层有互动儿童区，适合饭后遛娃。", rating: "4.5", distance: "1.2km" }
+  ],
+  friends: [
+    { name: "武康路历史文化街区", type: "citywalk", time: "14:00 - 15:30", duration: "1.5小时", icon: "🏛️", tags: ["citywalk", "打卡", "历史建筑"], desc: "上海最美法式梧桐小马路，沿途咖啡馆、精品店，4人同行正好。", rating: "4.9", distance: "4.1km" },
+    { name: "老吉士酒家", type: "餐厅", time: "17:00 - 18:30", duration: "1.5小时", icon: "🥘", tags: ["本帮菜", "人气", "需提前预约"], desc: "明星同款本帮菜，建议提前1小时叫号。当前等位约45分钟。", rating: "4.6", distance: "0.3km", badge: "⚠️ 等位45分钟" },
+    { name: "TX淮海·潮流文化公园", type: "商业", time: "19:00 - 20:30", duration: "1.5小时", icon: "🎨", tags: ["潮流", "艺术", "拍照"], desc: "沉浸式潮流地标，周末常有快闪活动，适合4人同游。", rating: "4.6", distance: "1.5km" }
+  ]
+};
+
+const MOCK_EXEC = [
+  { name: "外婆家菜馆 — 4人位预约", icon: "🍽️", status: "ok", label: "预约成功" },
+  { name: "世纪公园 — 入园票×2大+1小", icon: "🎫", status: "ok", label: "购票成功" },
+  { name: "鲜花蛋糕配送到餐厅", icon: "💐", status: "wait", label: "配送中" },
+  { name: "计划发送给家人", icon: "📱", status: "ok", label: "已发送" }
+];
+
+// ══════════════════════════════════════════════════════════════
+// Tool 1: extract_intent
+// ══════════════════════════════════════════════════════════════
+
+const GLM_API_URL = 'https://open.bigmodel.cn/api/paas/v4/chat/completions';
+const GLM_MODEL   = 'glm-4-flash';
+const DEEPSEEK_API_URL = 'https://api.deepseek.com/chat/completions';
+const DEEPSEEK_MODEL   = 'deepseek-chat';
+const MAX_CLARIFY_ROUNDS = 2;
+const REQUIRED_FIELDS = ['group_type', 'adults'];
+
+const INTENT_SYSTEM_PROMPT = `你是美团本地出行规划助手的意图解析模块。
+用户发来一句自然语言，描述他们的周末出行需求。
+你的任务是把这句话解析成一个 JSON 对象，只输出 JSON，不要任何解释或 markdown 代码块。
+
+JSON 结构：
+{"group_type":"family"|"friends"|"couple"|"senior","adults":<整数>,"children":[{"age":<整数>}],"radius_km":<整数>,"start_time":"HH:MM","duration_hours":<整数>,"preferences":["string"],"budget_per_person":<整数或null>,"special_needs":["string"],"missing_fields":["string"]}
+
+解析规则：
+- "老婆最近在减肥" → special_needs加"健康饮食"
+- "孩子5岁" → children:[{"age":5}]，group_type推断为"family"
+- "4个人2男2女" → adults:4，group_type为"friends"
+- "别太远" → radius_km:5
+- 信息充足时missing_fields为[]；缺人数填"adults"，缺场景填"group_type"
+只输出合法JSON。`;
+
+const CLARIFY_QUESTIONS = {
+  adults:     '请问这次出行一共几个人呢？',
+  group_type: '请问是和家人、朋友，还是和另一半出行呢？',
+  start_time: '请问打算几点出发呢？',
+  radius_km:  '请问可以接受离家多远的地方？'
+};
+
+async function callGLM(text, apiKey) {
+  if (!apiKey) throw new Error('GLM Key未配置');
+  const res = await fetch(GLM_API_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
+    body: JSON.stringify({ model: GLM_MODEL, max_tokens: 512, temperature: 0.1,
+      messages: [{ role: 'system', content: INTENT_SYSTEM_PROMPT }, { role: 'user', content: text }] }),
+    signal: AbortSignal.timeout(8000)
+  });
+  if (!res.ok) throw new Error(`GLM HTTP ${res.status}`);
+  const data = await res.json();
+  return data.choices?.[0]?.message?.content ?? '';
+}
+
+async function callDeepSeek(text, apiKey) {
+  if (!apiKey) throw new Error('DeepSeek Key未配置');
+  const res = await fetch(DEEPSEEK_API_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
+    body: JSON.stringify({ model: DEEPSEEK_MODEL, max_tokens: 512, temperature: 0.1,
+      messages: [{ role: 'system', content: INTENT_SYSTEM_PROMPT }, { role: 'user', content: text }] }),
+    signal: AbortSignal.timeout(10000)
+  });
+  if (!res.ok) throw new Error(`DeepSeek HTTP ${res.status}`);
+  const data = await res.json();
+  return data.choices?.[0]?.message?.content ?? '';
+}
+
+function ruleBasedFallback(text) {
+  const t = text;
+  let group_type = 'friends';
+  if (/孩子|宝宝|亲子|小孩|儿子|女儿/.test(t)) group_type = 'family';
+  else if (/老婆|老公|媳妇|爱人|两个人.*约会|约会/.test(t)) group_type = 'couple';
+  else if (/爸妈|父母|爷爷|奶奶|姥姥|姥爷|长辈|老人/.test(t)) group_type = 'senior';
+  const adultMatch = t.match(/(\d+)\s*[个名位人]/);
+  let adults = adultMatch ? parseInt(adultMatch[1]) : 2;
+  if (group_type === 'couple') adults = 2;
+  const children = [];
+  const childAgeMatches = [...t.matchAll(/孩子\s*(\d+)\s*岁|(\d+)\s*岁.*?孩子/g)];
+  childAgeMatches.forEach(m => { const age = parseInt(m[1] || m[2]); if (!isNaN(age) && age < 18) children.push({ age }); });
+  if (group_type === 'family' && children.length === 0) children.push({ age: 5 });
+  let radius_km = 5;
+  if (/别.*太远|不.*太远|附近|周边/.test(t)) radius_km = 5;
+  else if (/稍微远|可以远/.test(t)) radius_km = 15;
+  else if (/市内|市区/.test(t)) radius_km = 10;
+  const timeMatch = t.match(/(上午|下午|晚上|早上)?\s*(\d{1,2})\s*[点:时]\s*(\d{0,2})/);
+  let start_time = '14:00';
+  if (timeMatch) {
+    const period = timeMatch[1] || '';
+    let h = parseInt(timeMatch[2]);
+    const m2 = (timeMatch[3] || '00').padStart(2, '0');
+    if ((period === '下午' || period === '晚上') && h < 12) h += 12;
+    if (period === '上午' && h === 12) h = 0;
+    start_time = `${String(h).padStart(2,'0')}:${m2}`;
+  }
+  const durMatch = t.match(/(\d+)\s*[个]?\s*小时/);
+  const duration_hours = durMatch ? parseInt(durMatch[1]) : 5;
+  const preferences = [];
+  if (/亲子|孩子|游乐/.test(t)) preferences.push('亲子');
+  if (/citywalk|散步|逛逛/.test(t)) preferences.push('citywalk');
+  if (/展览|博物馆|美术馆/.test(t)) preferences.push('展览');
+  if (/购物|逛街/.test(t)) preferences.push('购物');
+  if (/自然|公园|爬山/.test(t)) preferences.push('户外');
+  const special_needs = [];
+  if (/减肥|健康|轻食|低卡/.test(t)) special_needs.push('健康饮食');
+  if (/素食|不吃肉/.test(t)) special_needs.push('素食');
+  if (/轮椅|无障碍/.test(t)) special_needs.push('无障碍');
+  return { group_type, adults, children, radius_km, start_time, duration_hours, preferences, special_needs, budget_per_person: null, missing_fields: [] };
+}
+
+function parseIntentJSON(raw) {
+  if (!raw) throw new Error('空响应');
+  let cleaned = raw.replace(/^```json\s*/i,'').replace(/^```\s*/i,'').replace(/```\s*$/i,'').trim();
+  const start = cleaned.indexOf('{'), end = cleaned.lastIndexOf('}');
+  if (start === -1 || end === -1) throw new Error('无JSON对象');
+  cleaned = cleaned.slice(start, end + 1);
+  const obj = JSON.parse(cleaned);
+  if (typeof obj.adults !== 'number') obj.adults = parseInt(obj.adults) || 2;
+  if (!Array.isArray(obj.children)) obj.children = [];
+  if (!Array.isArray(obj.preferences)) obj.preferences = [];
+  if (!Array.isArray(obj.special_needs)) obj.special_needs = [];
+  if (!Array.isArray(obj.missing_fields)) obj.missing_fields = [];
+  return obj;
+}
+
+function validateIntent(intent) {
+  const missing = REQUIRED_FIELDS.filter(f => !intent[f]);
+  const allMissing = [...new Set([...missing, ...(intent.missing_fields || [])])];
+  return allMissing.length > 0 ? { ok: false, missingFields: allMissing } : { ok: true };
+}
+
+function applyDefaults(intent) {
+  return {
+    group_type:        intent.group_type        ?? 'friends',
+    adults:            intent.adults            ?? 2,
+    children:          intent.children          ?? [],
+    radius_km:         intent.radius_km         ?? 5,
+    start_time:        intent.start_time        ?? '14:00',
+    duration_hours:    intent.duration_hours    ?? 5,
+    preferences:       intent.preferences       ?? [],
+    special_needs:     intent.special_needs     ?? [],
+    budget_per_person: intent.budget_per_person ?? null,
+    missing_fields:    []
+  };
+}
+
+async function extractIntent(userText, options = {}) {
+  const { glmApiKey, deepseekApiKey, round = 0 } = options;
+  let raw = null, usedFallback = false;
+  try { raw = await callGLM(userText, glmApiKey); }
+  catch (e) {
+    try { raw = await callDeepSeek(userText, deepseekApiKey); }
+    catch (_) { usedFallback = true; }
+  }
+  let intent;
+  try {
+    intent = raw ? parseIntentJSON(raw) : ruleBasedFallback(userText);
+    if (!raw) usedFallback = true;
+  } catch (_) { intent = ruleBasedFallback(userText); usedFallback = true; }
+  const validation = validateIntent(intent);
+  if (!validation.ok) {
+    if (usedFallback || round >= MAX_CLARIFY_ROUNDS)
+      return { ok: true, intent: applyDefaults(intent), source: usedFallback ? 'fallback' : 'default_filled' };
+    const mf = validation.missingFields;
+    const clarify = mf.length === 1 && CLARIFY_QUESTIONS[mf[0]]
+      ? CLARIFY_QUESTIONS[mf[0]]
+      : '请问能再告诉我一下出行人数和是家庭还是朋友出行吗？';
+    return { ok: false, clarify, intent, round };
+  }
+  return { ok: true, intent: applyDefaults(intent), source: usedFallback ? 'fallback' : 'ai' };
+}
+
+// ── API Key 配置（在此填入真实 Key） ──────────────────────────
+const API_CONFIG = {
+  glmApiKey:      '',   // 填入智谱 GLM API Key
+  deepseekApiKey: ''    // 填入 DeepSeek API Key（备用）
+};
+
+// ── STATE ──
+let isRecording = false;
+let recognition = null;
+let currentPlan = null;
+let lastPlanText = '';
+let clarifyRound = 0;
+let lastUserText = '';
+
+// ── CLOCK ──
+function updateClock() {
+  const now = new Date();
+  const h = String(now.getHours()).padStart(2,'0');
+  const m = String(now.getMinutes()).padStart(2,'0');
+  document.getElementById('current-time').textContent = h + ':' + m;
+}
+updateClock();
+setInterval(updateClock, 10000);
+
+// ── FONT SIZE ──
+function setFontSize(size, btn) {
+  document.documentElement.removeAttribute('data-size');
+  if (size !== 'normal') document.documentElement.setAttribute('data-size', size);
+  document.querySelectorAll('.font-size-group button').forEach(b => {
+    b.classList.remove('active');
+    b.setAttribute('aria-pressed', 'false');
+  });
+  btn.classList.add('active');
+  btn.setAttribute('aria-pressed', 'true');
+}
+
+// ── SENIOR MODE ──
+function toggleSeniorMode() {
+  document.body.classList.toggle('senior-mode');
+  const isOn = document.body.classList.contains('senior-mode');
+  document.getElementById('senior-btn').classList.toggle('active', isOn);
+  if (isOn) {
+    document.querySelector('.a11y-banner').style.display = 'flex';
+    speakText('老年人模式已开启，字体已放大，操作更方便。');
+  } else {
+    document.querySelector('.a11y-banner').style.display = 'none';
+  }
+}
+
+// ── MIC ──
+function toggleMic() {
+  if (!('webkitSpeechRecognition' in window || 'SpeechRecognition' in window)) {
+    addMessage('ai', '您的浏览器暂不支持语音识别，建议使用 Chrome 浏览器。也可以直接打字哦！');
+    return;
+  }
+  if (isRecording) {
+    stopRecording();
+  } else {
+    startRecording();
+  }
+}
+
+function startRecording() {
+  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+  recognition = new SpeechRecognition();
+  recognition.lang = 'zh-CN';
+  recognition.continuous = false;
+  recognition.interimResults = true;
+
+  recognition.onstart = () => {
+    isRecording = true;
+    document.getElementById('mic-btn').classList.add('recording');
+    document.getElementById('mic-btn').setAttribute('aria-pressed', 'true');
+    document.getElementById('mic-btn').setAttribute('aria-label', '点击停止录音');
+    document.getElementById('sound-wave').classList.add('active');
+  };
+  recognition.onresult = (e) => {
+    const transcript = Array.from(e.results).map(r => r[0].transcript).join('');
+    document.getElementById('main-input').value = transcript;
+  };
+  recognition.onend = () => {
+    stopRecording();
+  };
+  recognition.onerror = () => {
+    stopRecording();
+    addMessage('ai', '语音识别遇到问题，请重试或直接输入文字。');
+  };
+  recognition.start();
+}
+
+function stopRecording() {
+  isRecording = false;
+  if (recognition) recognition.stop();
+  document.getElementById('mic-btn').classList.remove('recording');
+  document.getElementById('mic-btn').setAttribute('aria-pressed', 'false');
+  document.getElementById('mic-btn').setAttribute('aria-label', '语音输入');
+  document.getElementById('sound-wave').classList.remove('active');
+}
+
+// ── SEND ──
+function handleKey(e) {
+  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }
+}
+
+function fillQuick(text) {
+  document.getElementById('main-input').value = text;
+  document.getElementById('main-input').focus();
+}
+
+async function sendMessage() {
+  const input = document.getElementById('main-input');
+  const text = input.value.trim();
+  if (!text) return;
+
+  // 追问模式：把追问回答拼接到上次输入
+  const fullText = clarifyRound > 0 ? `${lastUserText}。补充：${text}` : text;
+
+  addMessage('user', text);
+  input.value = '';
+  document.getElementById('send-btn').disabled = true;
+  showTyping();
+
+  // ── Tool 1: extract_intent ──
+  const result = await extractIntent(fullText, {
+    glmApiKey:      API_CONFIG.glmApiKey,
+    deepseekApiKey: API_CONFIG.deepseekApiKey,
+    round:          clarifyRound
+  });
+
+  removeTyping();
+
+  // 需要追问
+  if (!result.ok) {
+    clarifyRound = result.round + 1;
+    lastUserText = fullText;
+    addMessage('ai', result.clarify);
+    document.getElementById('send-btn').disabled = false;
+    return;
+  }
+
+  // 解析成功，重置追问状态
+  clarifyRound = 0;
+  lastUserText = '';
+  const intent = result.intent;
+
+  // 显示解析来源（开发调试用，正式版可去掉）
+  const sourceLabel = { ai: '🤖 AI解析', fallback: '⚡ 快速解析', default_filled: '📋 默认填充' };
+  const intentSummary = `好的！我来帮您安排${intent.group_type === 'family' ? '家庭' : intent.group_type === 'couple' ? '情侣' : intent.group_type === 'senior' ? '长辈' : '朋友'}出行方案（${sourceLabel[result.source] || ''}）`;
+
+  // 根据 intent 映射 Mock 场景（Tool 2-3 接入前的过渡）
+  const scenario = (intent.group_type === 'family' || intent.group_type === 'senior') ? 'family' : 'friends';
+
+  const childNote  = intent.children.length > 0 ? `，带 ${intent.children[0].age} 岁孩子` : '';
+  const needNote   = intent.special_needs.includes('健康饮食') ? '，餐厅已过滤健康饮食选项' : '';
+  const intro = `${intentSummary}。出发时间 ${intent.start_time}，活动半径 ${intent.radius_km}km，共 ${intent.adults} 人${childNote}${needNote}，为您规划约 ${intent.duration_hours} 小时行程：`;
+
+  addMessage('ai', intro);
+  await delay(300);
+  showPlanCards(scenario);
+  updateTimeline(scenario);
+  lastPlanText = generateShareText(scenario);
+  currentPlan = scenario;
+}
+
+function showPlanCards(scenario) {
+  const places = MOCK_PLACES[scenario];
+  const chatArea = document.getElementById('chat-area');
+
+  const cardContainer = document.createElement('div');
+  cardContainer.className = 'msg ai';
+  cardContainer.setAttribute('role', 'article');
+  cardContainer.setAttribute('aria-label', '行程方案卡片');
+
+  const avatar = document.createElement('div');
+  avatar.className = 'msg-avatar';
+  avatar.setAttribute('aria-hidden', 'true');
+  avatar.textContent = '🤖';
+
+  const bubble = document.createElement('div');
+  bubble.className = 'msg-bubble';
+  bubble.style.padding = '0';
+  bubble.style.border = 'none';
+  bubble.style.background = 'transparent';
+  bubble.style.boxShadow = 'none';
+  bubble.style.maxWidth = '95%';
+
+  const cards = document.createElement('div');
+  cards.className = 'plan-cards';
+
+  places.forEach((place, i) => {
+    const card = document.createElement('div');
+    card.className = 'plan-card';
+    card.setAttribute('role', 'article');
+    card.setAttribute('aria-label', `第${i+1}站：${place.name}`);
+    card.innerHTML = `
+      <div class="card-header">
+        <div class="card-step step-${i+1}" aria-label="第${i+1}站">0${i+1}</div>
+        <div>
+          <div class="card-title">${place.icon} ${place.name}</div>
+          <div class="card-meta">⏰ ${place.time}（约${place.duration}）${place.badge ? ' &nbsp;' + place.badge : ''}</div>
+        </div>
+      </div>
+      <div class="card-body">
+        <div class="card-desc">${place.desc}</div>
+        <div class="card-tags">
+          ${place.tags.map(t => `<span class="tag tag-${i===0?'blue':i===1?'green':'amber'}">${t}</span>`).join('')}
+        </div>
+        <div class="card-info-row">
+          <div class="info-item">⭐ ${place.rating}</div>
+          <div class="info-item">📍 ${place.distance}</div>
+          <div class="info-item">🏷️ ${place.type}</div>
+        </div>
+      </div>
+    `;
+    cards.appendChild(card);
+  });
+
+  // Action Buttons
+  const actions = document.createElement('div');
+  actions.className = 'action-bar';
+  actions.setAttribute('role', 'group');
+  actions.setAttribute('aria-label', '方案操作');
+  actions.innerHTML = `
+    <button class="action-btn btn-confirm" onclick="confirmPlan()" aria-label="确认方案并一键预约执行">
+      ✅ 确认方案 · 一键执行
+    </button>
+    <button class="action-btn btn-modify" onclick="modifyPlan()" aria-label="修改行程方案">
+      ✏️ 修改
+    </button>
+    <button class="action-btn btn-share" onclick="showShareModal()" aria-label="分享行程给家人朋友">
+      📤 分享
+    </button>
+  `;
+  // Add ripple to confirm btn
+  actions.querySelector('.btn-confirm').addEventListener('click', addRipple);
+
+  bubble.appendChild(cards);
+  bubble.appendChild(actions);
+  cardContainer.appendChild(avatar);
+  cardContainer.appendChild(bubble);
+  chatArea.appendChild(cardContainer);
+  chatArea.scrollTop = chatArea.scrollHeight;
+
+  document.getElementById('send-btn').disabled = false;
+
+  // Speak summary
+  setTimeout(() => speakText(`好的！我为您规划了三站行程，第一站是${places[0].name}，${places[0].time}出发。`), 500);
+}
+
+function addRipple(e) {
+  const btn = e.currentTarget;
+  const r = document.createElement('span');
+  r.className = 'ripple-effect';
+  const rect = btn.getBoundingClientRect();
+  r.style.width = r.style.height = Math.max(rect.width, rect.height) + 'px';
+  r.style.left = (e.clientX - rect.left - parseInt(r.style.width)/2) + 'px';
+  r.style.top = (e.clientY - rect.top - parseInt(r.style.height)/2) + 'px';
+  btn.style.position = 'relative';
+  btn.style.overflow = 'hidden';
+  btn.appendChild(r);
+  setTimeout(() => r.remove(), 600);
+}
+
+async function confirmPlan() {
+  showTyping();
+  await delay(800);
+  removeTyping();
+
+  const chatArea = document.getElementById('chat-area');
+  const msgDiv = document.createElement('div');
+  msgDiv.className = 'msg ai';
+  msgDiv.setAttribute('role', 'article');
+  msgDiv.setAttribute('aria-label', '执行结果');
+
+  const avatar = document.createElement('div');
+  avatar.className = 'msg-avatar';
+  avatar.setAttribute('aria-hidden', 'true');
+  avatar.textContent = '🤖';
+
+  const bubble = document.createElement('div');
+  bubble.className = 'msg-bubble';
+  bubble.innerHTML = '<strong>🚀 正在为您执行以下操作…</strong>';
+
+  const execList = document.createElement('div');
+  execList.className = 'exec-list';
+  execList.setAttribute('role', 'list');
+  execList.setAttribute('aria-label', '执行进度列表');
+
+  MOCK_EXEC.forEach(item => {
+    const el = document.createElement('div');
+    el.className = 'exec-item';
+    el.setAttribute('role', 'listitem');
+    el.setAttribute('aria-label', `${item.name}：${item.label}`);
+    el.innerHTML = `
+      <span class="exec-icon" aria-hidden="true">${item.icon}</span>
+      <span class="exec-name">${item.name}</span>
+      <span class="exec-status status-${item.status}">${item.label}</span>
+    `;
+    execList.appendChild(el);
+  });
+
+  bubble.appendChild(execList);
+
+  const note = document.createElement('p');
+  note.style.cssText = 'margin-top:14px;font-size:0.88em;color:var(--text-3)';
+  note.textContent = '✅ 全部完成！行程计划已发送给家人，下午2点出发，玩得开心！';
+  bubble.appendChild(note);
+
+  msgDiv.appendChild(avatar);
+  msgDiv.appendChild(bubble);
+  chatArea.appendChild(msgDiv);
+  chatArea.scrollTop = chatArea.scrollHeight;
+
+  setTimeout(() => speakText('好的！所有预约都已完成，行程计划已发送给家人，祝您玩得开心！'), 1500);
+}
+
+function modifyPlan() {
+  document.getElementById('main-input').value = '我想修改一下行程，餐厅能换一家排队少一点的吗？';
+  document.getElementById('main-input').focus();
+}
+
+function updateTimeline(scenario) {
+  const places = MOCK_PLACES[scenario];
+  const tl = document.getElementById('timeline');
+  tl.innerHTML = places.map((p, i) => `
+    <div class="tl-item">
+      <div class="tl-dot ${i === 0 ? 'active' : 'upcoming'}" aria-label="${i === 0 ? '下一站' : '计划中'}"></div>
+      <div class="tl-time">${p.time}</div>
+      <div class="tl-name">${p.icon} ${p.name}</div>
+      <div class="tl-sub">${p.type} · ${p.duration}</div>
+    </div>
+  `).join('');
+}
+
+function generateShareText(scenario) {
+  const places = MOCK_PLACES[scenario];
+  return `搞定了！${places[0].time}出发，先去${places[0].name}（${places[0].duration}），然后${places[1].time}去${places[1].name}，最后${places[2].time}顺路去${places[2].name}。玩的开心 🎉`;
+}
+
+// ── MESSAGES ──
+function addMessage(role, text) {
+  const chatArea = document.getElementById('chat-area');
+  const msg = document.createElement('div');
+  msg.className = `msg ${role}`;
+  msg.setAttribute('role', 'article');
+  msg.setAttribute('aria-label', role === 'user' ? '您的消息' : '助手消息');
+
+  const avatar = document.createElement('div');
+  avatar.className = 'msg-avatar';
+  avatar.setAttribute('aria-hidden', 'true');
+  avatar.textContent = role === 'user' ? '我' : '🤖';
+
+  const bubble = document.createElement('div');
+  bubble.className = 'msg-bubble';
+  bubble.innerHTML = text;
+
+  msg.appendChild(avatar);
+  msg.appendChild(bubble);
+  chatArea.appendChild(msg);
+  chatArea.scrollTop = chatArea.scrollHeight;
+}
+
+function showTyping() {
+  const chatArea = document.getElementById('chat-area');
+  const wrap = document.createElement('div');
+  wrap.className = 'msg ai';
+  wrap.id = 'typing-wrap';
+  wrap.setAttribute('aria-label', 'AI正在思考');
+  wrap.setAttribute('role', 'status');
+  wrap.setAttribute('aria-live', 'polite');
+
+  const avatar = document.createElement('div');
+  avatar.className = 'msg-avatar';
+  avatar.setAttribute('aria-hidden', 'true');
+  avatar.textContent = '🤖';
+
+  const indicator = document.createElement('div');
+  indicator.className = 'typing-indicator';
+  indicator.setAttribute('aria-hidden', 'true');
+  for (let i = 0; i < 3; i++) {
+    const dot = document.createElement('div');
+    dot.className = 'typing-dot';
+    indicator.appendChild(dot);
+  }
+
+  wrap.appendChild(avatar);
+  wrap.appendChild(indicator);
+  chatArea.appendChild(wrap);
+  chatArea.scrollTop = chatArea.scrollHeight;
+}
+
+function removeTyping() {
+  const el = document.getElementById('typing-wrap');
+  if (el) el.remove();
+}
+
+// ── SHARE ──
+function showShareModal() {
+  document.getElementById('share-content').textContent = lastPlanText || '先规划一个行程，再来分享吧 😊';
+  document.getElementById('share-modal').classList.add('open');
+  document.querySelector('.modal').focus();
+}
+function closeModal(e) {
+  if (e.target === e.currentTarget) document.getElementById('share-modal').classList.remove('open');
+}
+function copyShareText() {
+  const text = document.getElementById('share-content').textContent;
+  navigator.clipboard.writeText(text).then(() => {
+    const btn = document.querySelector('.modal-btn.primary');
+    btn.textContent = '✅ 已复制！';
+    setTimeout(() => btn.textContent = '📋 复制文字', 1800);
+  }).catch(() => alert('请手动复制文字'));
+}
+document.getElementById('share-modal').addEventListener('keydown', e => {
+  if (e.key === 'Escape') document.getElementById('share-modal').classList.remove('open');
+});
+
+// ── CLEAR ──
+function clearChat() {
+  const chatArea = document.getElementById('chat-area');
+  chatArea.innerHTML = '';
+  currentPlan = null;
+  lastPlanText = '';
+  document.getElementById('timeline').innerHTML = '<div class="tl-item"><div class="tl-dot upcoming"></div><div class="tl-time">等待规划中…</div><div class="tl-name" style="color:var(--text-4);">告诉我您的需求开始规划</div></div>';
+  addMessage('ai', '好的，让我们重新开始！请告诉我您想怎么安排今天的行程？😊');
+}
+
+// ── TTS ──
+function speakText(text) {
+  if ('speechSynthesis' in window) {
+    window.speechSynthesis.cancel();
+    const u = new SpeechSynthesisUtterance(text);
+    u.lang = 'zh-CN';
+    u.rate = 0.9;
+    window.speechSynthesis.speak(u);
+  }
+}
+function speakLastPlan() {
+  if (lastPlanText) speakText(lastPlanText);
+  else speakText('您还没有规划行程，请先告诉我您想怎么玩。');
+}
+
+// ── UTILS ──
+function delay(ms) { return new Promise(r => setTimeout(r, ms)); }
+</script>
+</body>
+</html>
