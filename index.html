@@ -691,25 +691,677 @@
 </div>
 
 <script>
-// ── MOCK DATA ──
-const MOCK_PLACES = {
-  family: [
-    { name: "世纪公园", type: "公园", time: "14:00 - 16:00", duration: "2小时", icon: "🌳", tags: ["亲子", "免费", "宽敞"], desc: "上海最大城市公园，儿童游乐设施齐全，适合5岁宝宝。", rating: "4.7", distance: "3.2km" },
-    { name: "外婆家菜馆·浦东店", type: "餐厅", time: "16:30 - 18:00", duration: "1.5小时", icon: "🍜", tags: ["本帮菜", "儿童友好", "可预约"], desc: "人气上海本帮菜，宝宝饭可免费加热。当前无需等位，已帮您预留4人靠窗位。", rating: "4.8", distance: "0.8km", badge: "✅ 无需排队" },
-    { name: "K11购物艺术中心", type: "商场", time: "18:30 - 19:30", duration: "1小时", icon: "🛍️", tags: ["室内", "亲子", "艺术"], desc: "结合艺术与商业，负一层有互动儿童区，适合饭后遛娃。", rating: "4.5", distance: "1.2km" }
-  ],
-  friends: [
-    { name: "武康路历史文化街区", type: "citywalk", time: "14:00 - 15:30", duration: "1.5小时", icon: "🏛️", tags: ["citywalk", "打卡", "历史建筑"], desc: "上海最美法式梧桐小马路，沿途咖啡馆、精品店，4人同行正好。", rating: "4.9", distance: "4.1km" },
-    { name: "老吉士酒家", type: "餐厅", time: "17:00 - 18:30", duration: "1.5小时", icon: "🥘", tags: ["本帮菜", "人气", "需提前预约"], desc: "明星同款本帮菜，建议提前1小时叫号。当前等位约45分钟。", rating: "4.6", distance: "0.3km", badge: "⚠️ 等位45分钟" },
-    { name: "TX淮海·潮流文化公园", type: "商业", time: "19:00 - 20:30", duration: "1.5小时", icon: "🎨", tags: ["潮流", "艺术", "拍照"], desc: "沉浸式潮流地标，周末常有快闪活动，适合4人同游。", rating: "4.6", distance: "1.5km" }
-  ]
+/**
+ * Tool 2: search_activities
+ * ─────────────────────────────────────────────────────────────
+ * 职责：根据 Intent 查询适合的活动场所，返回评分排序后的候选列表
+ *
+ * 调用：const result = await searchActivities(intent, options?)
+ * 返回：{ ok, activities[], meta }
+ * ─────────────────────────────────────────────────────────────
+ */
+
+const ACTIVITIES_DB = [
+  // ── 亲子 / 家庭 ──────────────────────────────────────────────
+  {
+    id: 'act_001', name: '世纪公园', type: 'park',
+    tags: ['亲子','免费','宽敞','户外','草坪'],
+    suitable_for: ['family','couple','senior'],
+    min_age: 0, duration_min: 120, rating: 4.7, distance_km: 3.2,
+    open_now: true, ticket_price: 0, icon: '🌳',
+    desc: '上海最大城市公园，儿童游乐设施齐全，草坪宽阔适合野餐，老人推着轮椅也能轻松游览。',
+    address: '浦东新区锦绣路1001号'
+  },
+  {
+    id: 'act_002', name: '上海科技馆', type: 'museum',
+    tags: ['亲子','室内','科技','互动','教育'],
+    suitable_for: ['family'],
+    min_age: 3, duration_min: 150, rating: 4.6, distance_km: 3.8,
+    open_now: true, ticket_price: 60, icon: '🔬',
+    desc: '寓教于乐的科技互动体验馆，孩子能亲手做实验，周末需提前预约。',
+    address: '浦东新区世纪大道2000号'
+  },
+  {
+    id: 'act_003', name: '上海野生动物园', type: 'park',
+    tags: ['亲子','动物','户外','刺激'],
+    suitable_for: ['family'],
+    min_age: 2, duration_min: 180, rating: 4.5, distance_km: 28.0,
+    open_now: true, ticket_price: 180, icon: '🦁',
+    desc: '可近距离接触动物，小朋友最爱，距市区较远建议自驾。',
+    address: '浦东新区南六公路178号'
+  },
+  {
+    id: 'act_004', name: 'K11购物艺术中心', type: 'mall',
+    tags: ['亲子','室内','艺术','购物','雨天'],
+    suitable_for: ['family','couple','friends'],
+    min_age: 0, duration_min: 90, rating: 4.5, distance_km: 1.2,
+    open_now: true, ticket_price: 0, icon: '🛍️',
+    desc: '艺术与商业结合，B3层有互动儿童区，适合饭后遛娃，雨天首选。',
+    address: '黄浦区淮海中路300号'
+  },
+  {
+    id: 'act_005', name: '上海自然博物馆', type: 'museum',
+    tags: ['亲子','室内','科普','恐龙','教育'],
+    suitable_for: ['family'],
+    min_age: 3, duration_min: 120, rating: 4.8, distance_km: 5.5,
+    open_now: true, ticket_price: 30, icon: '🦕',
+    desc: '超人气科普博物馆，恐龙化石镇馆之宝，周末需提前一周预约门票。',
+    address: '静安区北京西路510号'
+  },
+  // ── Citywalk / 朋友 ──────────────────────────────────────────
+  {
+    id: 'act_006', name: '武康路历史文化街区', type: 'citywalk',
+    tags: ['citywalk','打卡','历史建筑','咖啡','法式'],
+    suitable_for: ['friends','couple'],
+    min_age: 0, duration_min: 90, rating: 4.9, distance_km: 4.1,
+    open_now: true, ticket_price: 0, icon: '🏛️',
+    desc: '上海最美法式梧桐马路，沿途精品咖啡馆、独立书店和历史建筑，4人同行正好。',
+    address: '徐汇区武康路'
+  },
+  {
+    id: 'act_007', name: 'TX淮海·潮流文化公园', type: 'mall',
+    tags: ['潮流','艺术','拍照','展览','年轻'],
+    suitable_for: ['friends','couple'],
+    min_age: 0, duration_min: 90, rating: 4.6, distance_km: 1.5,
+    open_now: true, ticket_price: 0, icon: '🎨',
+    desc: '沉浸式潮流地标，周末常有快闪展览和文化活动，适合年轻人打卡拍照。',
+    address: '黄浦区淮海中路999号'
+  },
+  {
+    id: 'act_008', name: '上海当代艺术博物馆 PSA', type: 'exhibition',
+    tags: ['展览','当代艺术','室内','拍照','文艺'],
+    suitable_for: ['friends','couple'],
+    min_age: 0, duration_min: 120, rating: 4.7, distance_km: 2.3,
+    open_now: true, ticket_price: 40, icon: '🖼️',
+    desc: '中国第一家公立当代艺术博物馆，常设大型国际展览，文艺青年必去。',
+    address: '黄浦区花园港路200号'
+  },
+  {
+    id: 'act_009', name: '思南公馆', type: 'citywalk',
+    tags: ['citywalk','历史建筑','咖啡','文艺','花园'],
+    suitable_for: ['friends','couple','family'],
+    min_age: 0, duration_min: 60, rating: 4.6, distance_km: 2.8,
+    open_now: true, ticket_price: 0, icon: '🌸',
+    desc: '保存完好的欧式历史建筑群，周末常有市集和文化活动，咖啡馆遍布，适合漫步。',
+    address: '黄浦区复兴中路517号'
+  },
+  {
+    id: 'act_010', name: '上海滨江大道', type: 'outdoor',
+    tags: ['户外','江景','骑行','散步','免费'],
+    suitable_for: ['friends','couple','family','senior'],
+    min_age: 0, duration_min: 90, rating: 4.5, distance_km: 2.0,
+    open_now: true, ticket_price: 0, icon: '🌊',
+    desc: '浦东滨江景观带，可俯瞰外滩对岸景色，傍晚最美，适合散步或骑行。',
+    address: '浦东新区滨江大道'
+  },
+  // ── 情侣 ─────────────────────────────────────────────────────
+  {
+    id: 'act_011', name: '上海植物园', type: 'park',
+    tags: ['花园','浪漫','户外','拍照','情侣'],
+    suitable_for: ['couple','family','senior'],
+    min_age: 0, duration_min: 120, rating: 4.4, distance_km: 9.5,
+    open_now: true, ticket_price: 15, icon: '🌺',
+    desc: '四季有花，温室展览别具一格，是拍照和悠闲漫步的好去处。',
+    address: '徐汇区龙吴路1111号'
+  },
+  {
+    id: 'act_012', name: '1933老场坊', type: 'exhibition',
+    tags: ['工业遗址','文创','展览','拍照','独特'],
+    suitable_for: ['couple','friends'],
+    min_age: 0, duration_min: 60, rating: 4.3, distance_km: 4.6,
+    open_now: true, ticket_price: 0, icon: '🏭',
+    desc: '百年屠宰场改造的创意园区，空间极具设计感，各类展览轮番上演。',
+    address: '虹口区沙泾路10号'
+  },
+  // ── 长辈 / 老年人 ─────────────────────────────────────────────
+  {
+    id: 'act_013', name: '人民广场及周边', type: 'outdoor',
+    tags: ['散步','免费','无障碍','长辈','市中心'],
+    suitable_for: ['senior','family'],
+    min_age: 0, duration_min: 60, rating: 4.3, distance_km: 1.5,
+    open_now: true, ticket_price: 0, icon: '🏙️',
+    desc: '市中心广场，平坦宽阔无台阶，适合老人散步，周边博物馆群可顺道参观。',
+    address: '黄浦区人民大道'
+  },
+  {
+    id: 'act_014', name: '上海博物馆', type: 'museum',
+    tags: ['文化','历史','室内','免费','长辈','无障碍'],
+    suitable_for: ['senior','family','friends'],
+    min_age: 0, duration_min: 120, rating: 4.8, distance_km: 1.8,
+    open_now: true, ticket_price: 0, icon: '🏺',
+    desc: '免费开放的国家级历史博物馆，青铜器、书画藏品丰富，老人文化游首选。',
+    address: '黄浦区人民大道201号'
+  }
+];
+
+const SCORE_WEIGHTS = {
+  suitability: 0.35, rating: 0.25,
+  distance: 0.20,    preference: 0.15, child_safety: 0.05
 };
 
+async function searchActivities(intent, options = {}) {
+  const { limit = 6, minRating = 4.0, mockDelayMs = 200 } = options;
+  await new Promise(r => setTimeout(r, mockDelayMs));
+
+  try {
+    let candidates = ACTIVITIES_DB.filter(a => {
+      if (a.rating < minRating) return false;
+      if (a.distance_km > intent.radius_km * 1.2) return false;
+      if (intent.children && intent.children.length > 0) {
+        const minChildAge = Math.min(...intent.children.map(c => c.age));
+        if (a.min_age > minChildAge) return false;
+      }
+      return true;
+    });
+
+    candidates = candidates
+      .map(a => ({ ...a, _score: computeScore(a, intent) }))
+      .sort((a, b) => b._score - a._score);
+
+    const result = diversify(candidates, limit);
+    const activities = result.map(a => formatActivity(a, intent));
+
+    return {
+      ok: true, activities,
+      meta: { total_candidates: candidates.length, source: 'mock' }
+    };
+  } catch (err) {
+    return {
+      ok: false, error: err.message,
+      activities: getFallbackActivities(intent),
+      meta: { source: 'fallback' }
+    };
+  }
+}
+
+function computeScore(activity, intent) {
+  let score = 0;
+  const suitability = activity.suitable_for.includes(intent.group_type) ? 1.0 : 0.3;
+  score += SCORE_WEIGHTS.suitability * suitability;
+  score += SCORE_WEIGHTS.rating * (activity.rating / 5.0);
+  const distScore = Math.max(0, 1 - activity.distance_km / (intent.radius_km * 1.2));
+  score += SCORE_WEIGHTS.distance * distScore;
+  const prefs = intent.preferences || [];
+  if (prefs.length > 0) {
+    const matchCount = prefs.filter(p =>
+      activity.tags.some(t => t.includes(p) || p.includes(t))
+    ).length;
+    score += SCORE_WEIGHTS.preference * (matchCount / prefs.length);
+  } else {
+    score += SCORE_WEIGHTS.preference * 0.5;
+  }
+  if (intent.children && intent.children.length > 0) {
+    const cf = activity.tags.some(t => ['亲子','儿童','互动','游乐'].includes(t));
+    score += SCORE_WEIGHTS.child_safety * (cf ? 1.0 : 0.0);
+  }
+  return score;
+}
+
+function diversify(sorted, limit) {
+  const result = [], typeCount = {};
+  for (const a of sorted) {
+    if (result.length >= limit) break;
+    typeCount[a.type] = typeCount[a.type] || 0;
+    if (typeCount[a.type] < 2) { result.push(a); typeCount[a.type]++; }
+  }
+  if (result.length < Math.min(limit, 3)) {
+    for (const a of sorted) {
+      if (result.length >= limit) break;
+      if (!result.find(r => r.id === a.id)) result.push(a);
+    }
+  }
+  return result;
+}
+
+function minutesToTime(totalMinutes) {
+  const h = Math.floor(totalMinutes / 60) % 24;
+  const m = totalMinutes % 60;
+  return `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}`;
+}
+
+function mockAvailability(type) {
+  const needBooking = ['museum','exhibition'].includes(type);
+  const r = Math.random();
+  if (needBooking) {
+    if (r < 0.4) return { status: 'available', label: '可直接入场' };
+    if (r < 0.8) return { status: 'booking',   label: '建议提前预约' };
+    return           { status: 'crowded',       label: '今日较拥挤' };
+  }
+  if (r < 0.7) return { status: 'available', label: '随时可去' };
+  return         { status: 'busy',           label: '周末较热门' };
+}
+
+function buildBadge(availability, ticketPrice) {
+  const map = { available: null, booking: '📅 建议预约', crowded: '⚠️ 今日拥挤', busy: '🔥 周末热门' };
+  const badge = map[availability.status];
+  if (ticketPrice === 0 && !badge) return '✅ 免费';
+  return badge;
+}
+
+function formatActivity(raw, intent) {
+  const [sh, sm] = (intent.start_time || '14:00').split(':').map(Number);
+  const startMin = sh * 60 + sm;
+  const arrivalTime = minutesToTime(startMin);
+  const endTime = minutesToTime(startMin + raw.duration_min);
+  const availability = mockAvailability(raw.type);
+  return {
+    id: raw.id, name: raw.name, type: raw.type, icon: raw.icon,
+    tags: raw.tags.slice(0, 4), desc: raw.desc, address: raw.address,
+    rating: raw.rating, distance_km: raw.distance_km,
+    distance_text: `${raw.distance_km}km`,
+    duration_min: raw.duration_min,
+    duration_text: raw.duration_min >= 60
+      ? `${raw.duration_min / 60}小时` : `${raw.duration_min}分钟`,
+    time_range: `${arrivalTime} - ${endTime}`,
+    arrival_time: arrivalTime,
+    ticket_price: raw.ticket_price,
+    price_text: raw.ticket_price === 0 ? '免费' : `¥${raw.ticket_price}/人`,
+    open_now: raw.open_now, availability,
+    badge: buildBadge(availability, raw.ticket_price),
+    score: Math.round((raw._score || 0) * 100),
+    category: 'activity'
+  };
+}
+
+function getFallbackActivities(intent) {
+  const isFamily = ['family','senior'].includes(intent.group_type);
+  const pool = isFamily
+    ? ACTIVITIES_DB.filter(a => a.suitable_for.includes('family')).slice(0, 3)
+    : ACTIVITIES_DB.filter(a => a.suitable_for.includes('friends')).slice(0, 3);
+  return pool.map(a => formatActivity({ ...a, _score: 0.5 }, intent));
+}
+
+if (typeof module !== 'undefined' && module.exports) {
+  module.exports = { searchActivities, computeScore, formatActivity, ACTIVITIES_DB };
+} else {
+  window.searchActivities = searchActivities;
+}
+
+
+/**
+ * Tool 3: search_restaurants
+ * ─────────────────────────────────────────────────────────────
+ * 职责：根据 Intent 查询餐厅，含实时等位模拟、健康度过滤、
+ *       儿童友好标记，返回排序后的候选列表
+ *
+ * 调用：const result = await searchRestaurants(intent, options?)
+ * 返回：{ ok, restaurants[], meta }
+ * ─────────────────────────────────────────────────────────────
+ */
+
+// ── Mock 餐厅数据库 ───────────────────────────────────────────
+// wait_base_min  平日基础等位时间（分钟），周末 × 1.5
+// healthy_score  健康度 1-5（5=最健康：蔬菜/轻食/低油）
+// kid_menu       是否有儿童餐
+// wheelchair     是否无障碍/轮椅友好
+// reservable     是否支持提前预约
+
+const RESTAURANTS_DB = [
+  // ── 本帮菜 / 中餐 ─────────────────────────────────────────
+  {
+    id: 'rst_001', name: '外婆家菜馆·浦东店', cuisine: '本帮菜',
+    tags: ['本帮菜','儿童友好','可预约','家常'],
+    suitable_for: ['family','senior'],
+    rating: 4.8, distance_km: 0.8,
+    price_per_person: 80,
+    healthy_score: 3,
+    kid_menu: true, wheelchair: true, reservable: true,
+    wait_base_min: 10,
+    open_now: true, icon: '🍜',
+    desc: '人气上海本帮菜，宝宝饭可免费加热，靠窗位置风景好。',
+    address: '浦东新区世纪大道88号'
+  },
+  {
+    id: 'rst_002', name: '老吉士酒家', cuisine: '本帮菜',
+    tags: ['本帮菜','人气','老字号','需排队'],
+    suitable_for: ['friends','couple'],
+    rating: 4.6, distance_km: 0.3,
+    price_per_person: 120,
+    healthy_score: 2,
+    kid_menu: false, wheelchair: false, reservable: false,
+    wait_base_min: 30,
+    open_now: true, icon: '🥘',
+    desc: '明星同款本帮菜老字号，红烧肉和腌笃鲜招牌，需提前到场叫号。',
+    address: '黄浦区天平路41号'
+  },
+  {
+    id: 'rst_003', name: '南翔馒头店·城隍庙', cuisine: '点心',
+    tags: ['小笼包','点心','老字号','上海特色'],
+    suitable_for: ['family','friends','senior'],
+    rating: 4.5, distance_km: 2.1,
+    price_per_person: 60,
+    healthy_score: 3,
+    kid_menu: false, wheelchair: true, reservable: false,
+    wait_base_min: 40,
+    open_now: true, icon: '🥟',
+    desc: '百年老字号小笼包，皮薄汤鲜，游客必打卡，周末排队较长。',
+    address: '黄浦区豫园路85号'
+  },
+  {
+    id: 'rst_004', name: '鼎泰丰·新天地店', cuisine: '台式点心',
+    tags: ['小笼包','精致','可预约','国际知名'],
+    suitable_for: ['family','couple','friends'],
+    rating: 4.7, distance_km: 1.9,
+    price_per_person: 150,
+    healthy_score: 3,
+    kid_menu: true, wheelchair: true, reservable: true,
+    wait_base_min: 20,
+    open_now: true, icon: '🍱',
+    desc: '精工细作的台式点心，儿童专属餐具和儿童餐，预约后基本不用等。',
+    address: '黄浦区马当路181号'
+  },
+  // ── 健康 / 轻食 ───────────────────────────────────────────
+  {
+    id: 'rst_005', name: 'wagas沙拉·陆家嘴店', cuisine: '轻食',
+    tags: ['健康','轻食','沙拉','低卡','减脂'],
+    suitable_for: ['friends','couple'],
+    rating: 4.4, distance_km: 1.1,
+    price_per_person: 90,
+    healthy_score: 5,
+    kid_menu: false, wheelchair: true, reservable: false,
+    wait_base_min: 5,
+    open_now: true, icon: '🥗',
+    desc: '上海最受欢迎的健康轻食连锁，沙拉、烤鸡和全麦三明治，减脂首选。',
+    address: '浦东新区陆家嘴环路1000号'
+  },
+  {
+    id: 'rst_006', name: '新素代·素食餐厅', cuisine: '素食',
+    tags: ['素食','健康','低卡','环保','精致'],
+    suitable_for: ['friends','couple','senior'],
+    rating: 4.3, distance_km: 3.2,
+    price_per_person: 100,
+    healthy_score: 5,
+    kid_menu: false, wheelchair: true, reservable: true,
+    wait_base_min: 5,
+    open_now: true, icon: '🌱',
+    desc: '精致素食料理，不输荤菜的口感，减肥或有特殊饮食需求首选。',
+    address: '静安区南京西路1068号'
+  },
+  {
+    id: 'rst_007', name: '绿茶餐厅·新天地店', cuisine: '江浙菜',
+    tags: ['健康','家常','性价比','江浙菜'],
+    suitable_for: ['family','friends','senior'],
+    rating: 4.4, distance_km: 1.8,
+    price_per_person: 70,
+    healthy_score: 4,
+    kid_menu: true, wheelchair: true, reservable: true,
+    wait_base_min: 25,
+    open_now: true, icon: '🍃',
+    desc: '高性价比江浙家常菜，招牌面包诱惑鸡，家庭聚餐和轻松聚会都合适。',
+    address: '黄浦区太仓路181号'
+  },
+  // ── 日料 / 西餐 ───────────────────────────────────────────
+  {
+    id: 'rst_008', name: '寿司郎·浦东店', cuisine: '日料',
+    tags: ['日料','回转寿司','性价比','新鲜'],
+    suitable_for: ['friends','couple','family'],
+    rating: 4.5, distance_km: 2.4,
+    price_per_person: 110,
+    healthy_score: 4,
+    kid_menu: true, wheelchair: true, reservable: true,
+    wait_base_min: 15,
+    open_now: true, icon: '🍣',
+    desc: '高人气回转寿司连锁，食材新鲜，支持线上候位，减少现场等待。',
+    address: '浦东新区张杨路500号'
+  },
+  {
+    id: 'rst_009', name: 'THE CANNERY·新天地', cuisine: '西餐',
+    tags: ['西餐','精酿啤酒','聚会','美式'],
+    suitable_for: ['friends','couple'],
+    rating: 4.5, distance_km: 2.0,
+    price_per_person: 180,
+    healthy_score: 3,
+    kid_menu: false, wheelchair: true, reservable: true,
+    wait_base_min: 10,
+    open_now: true, icon: '🍔',
+    desc: '工业风美式餐厅，精酿啤酒种类繁多，适合下午茶和朋友聚餐。',
+    address: '黄浦区建国中路10号'
+  },
+  // ── 火锅 / 烧烤 ───────────────────────────────────────────
+  {
+    id: 'rst_010', name: '海底捞·浦东店', cuisine: '火锅',
+    tags: ['火锅','服务好','可预约','聚会'],
+    suitable_for: ['family','friends','senior'],
+    rating: 4.6, distance_km: 2.7,
+    price_per_person: 130,
+    healthy_score: 3,
+    kid_menu: true, wheelchair: true, reservable: true,
+    wait_base_min: 20,
+    open_now: true, icon: '🫕',
+    desc: '服务一流的火锅连锁，有儿童乐园和老人绿色通道，预约后等位时间大幅缩短。',
+    address: '浦东新区张杨路500号港汇恒隆广场'
+  },
+  {
+    id: 'rst_011', name: '巴奴毛肚火锅·徐汇店', cuisine: '火锅',
+    tags: ['火锅','毛肚','人气','浓汤底'],
+    suitable_for: ['friends'],
+    rating: 4.7, distance_km: 5.3,
+    price_per_person: 140,
+    healthy_score: 2,
+    kid_menu: false, wheelchair: false, reservable: true,
+    wait_base_min: 45,
+    open_now: true, icon: '🌶️',
+    desc: '以毛肚闻名的网红火锅，汤底浓郁，朋友聚会首选，周末需提前预约。',
+    address: '徐汇区天钥桥路388号'
+  },
+  // ── 咖啡 / 甜品（下午茶） ────────────────────────────────
+  {
+    id: 'rst_012', name: 'M Stand咖啡·新天地店', cuisine: '咖啡',
+    tags: ['咖啡','网红','甜品','下午茶','拍照'],
+    suitable_for: ['friends','couple'],
+    rating: 4.5, distance_km: 1.6,
+    price_per_person: 60,
+    healthy_score: 3,
+    kid_menu: false, wheelchair: false, reservable: false,
+    wait_base_min: 10,
+    open_now: true, icon: '☕',
+    desc: '上海最火国产精品咖啡，工业风设计超出片，燕麦拿铁和甜品都是招牌。',
+    address: '黄浦区太仓路181弄'
+  }
+];
+
+// ── 等位时间模拟（考虑周末峰值） ──────────────────────────────
+function simulateWaitTime(restaurant) {
+  const now = new Date();
+  const hour = now.getHours();
+  const isWeekend = [0, 6].includes(now.getDay());
+  const isPeakHour = (hour >= 11 && hour <= 13) || (hour >= 17 && hour <= 20);
+
+  let multiplier = 1.0;
+  if (isWeekend) multiplier *= 1.5;
+  if (isPeakHour) multiplier *= 1.4;
+
+  // 加入随机波动 ±20%
+  const jitter = 0.8 + Math.random() * 0.4;
+  const waitMin = Math.round(restaurant.wait_base_min * multiplier * jitter);
+
+  return {
+    wait_minutes: waitMin,
+    wait_text: waitMin === 0 ? '无需等位'
+      : waitMin < 15 ? `约${waitMin}分钟`
+      : waitMin < 30 ? `约${waitMin}分钟`
+      : `约${Math.round(waitMin / 5) * 5}分钟`,
+    status: waitMin === 0     ? 'no_wait'
+      : waitMin < 15          ? 'short_wait'
+      : waitMin < 45          ? 'medium_wait'
+      : 'long_wait'
+  };
+}
+
+// ── 评分权重 ──────────────────────────────────────────────────
+const RST_SCORE_WEIGHTS = {
+  suitability:   0.30,
+  rating:        0.25,
+  wait_penalty:  0.20,  // 等位越长扣分越多
+  healthy:       0.15,  // 健康需求时提权
+  distance:      0.10
+};
+
+async function searchRestaurants(intent, options = {}) {
+  const { limit = 5, maxWaitMin = 60, mockDelayMs = 200 } = options;
+  await new Promise(r => setTimeout(r, mockDelayMs));
+
+  try {
+    // 1. 基础过滤
+    let candidates = RESTAURANTS_DB.filter(r => {
+      if (!r.open_now) return false;
+      if (r.distance_km > intent.radius_km * 1.2) return false;
+      // 有孩子：必须 kid_menu 或评分够高的家庭餐厅
+      if (intent.children && intent.children.length > 0) {
+        if (!r.kid_menu && !r.suitable_for.includes('family')) return false;
+      }
+      // 轮椅/无障碍需求
+      if ((intent.special_needs || []).includes('无障碍') && !r.wheelchair) return false;
+      // 素食需求
+      if ((intent.special_needs || []).includes('素食') && r.cuisine !== '素食') return false;
+      return true;
+    });
+
+    // 2. 注入实时等位时间
+    candidates = candidates.map(r => ({
+      ...r,
+      _wait: simulateWaitTime(r)
+    }));
+
+    // 3. 过滤等位超时的（除非可预约）
+    candidates = candidates.filter(r =>
+      r._wait.wait_minutes <= maxWaitMin || r.reservable
+    );
+
+    // 4. 健康饮食场景：healthy_score 低的餐厅降权
+    const needHealthy = (intent.special_needs || []).includes('健康饮食');
+
+    // 5. 综合评分排序
+    candidates = candidates
+      .map(r => ({ ...r, _score: computeRstScore(r, intent, needHealthy) }))
+      .sort((a, b) => b._score - a._score);
+
+    // 6. 格式化
+    const restaurants = candidates.slice(0, limit).map(r => formatRestaurant(r, intent));
+
+    return {
+      ok: true, restaurants,
+      meta: {
+        total_candidates: candidates.length,
+        healthy_mode: needHealthy,
+        source: 'mock'
+      }
+    };
+  } catch (err) {
+    return {
+      ok: false, error: err.message,
+      restaurants: getFallbackRestaurants(intent),
+      meta: { source: 'fallback' }
+    };
+  }
+}
+
+// ── 餐厅评分计算 ──────────────────────────────────────────────
+function computeRstScore(r, intent, needHealthy) {
+  let score = 0;
+
+  // 1. 出行类型匹配
+  const suit = r.suitable_for.includes(intent.group_type) ? 1.0 : 0.4;
+  score += RST_SCORE_WEIGHTS.suitability * suit;
+
+  // 2. 用户评分
+  score += RST_SCORE_WEIGHTS.rating * (r.rating / 5.0);
+
+  // 3. 等位惩罚（等位越长分越低；可预约的有折扣）
+  const wait = r._wait.wait_minutes;
+  const waitPenalty = r.reservable
+    ? Math.max(0, 1 - wait / 120)   // 可预约的惩罚减半
+    : Math.max(0, 1 - wait / 60);
+  score += RST_SCORE_WEIGHTS.wait_penalty * waitPenalty;
+
+  // 4. 健康度（有减肥/健康需求时提权 × 2）
+  const healthWeight = needHealthy
+    ? RST_SCORE_WEIGHTS.healthy * 2
+    : RST_SCORE_WEIGHTS.healthy;
+  score += healthWeight * (r.healthy_score / 5.0);
+
+  // 5. 距离
+  const distScore = Math.max(0, 1 - r.distance_km / (intent.radius_km * 1.2));
+  score += RST_SCORE_WEIGHTS.distance * distScore;
+
+  return score;
+}
+
+// ── 格式化输出 ────────────────────────────────────────────────
+function formatRestaurant(raw, intent) {
+  const wait = raw._wait;
+
+  // 建议就餐时间（出发时间 + 2小时活动 + 30分钟缓冲）
+  const [sh, sm] = (intent.start_time || '14:00').split(':').map(Number);
+  const dinnerMin = sh * 60 + sm + 150; // 默认活动后2.5小时用餐
+  const dinnerTime = minutesToTime(dinnerMin);
+  const dinnerEnd  = minutesToTime(dinnerMin + 90);
+
+  // 状态 badge
+  const badge = buildRstBadge(wait, raw.reservable);
+
+  return {
+    id:               raw.id,
+    name:             raw.name,
+    cuisine:          raw.cuisine,
+    icon:             raw.icon,
+    tags:             raw.tags.slice(0, 4),
+    desc:             raw.desc,
+    address:          raw.address,
+    rating:           raw.rating,
+    distance_km:      raw.distance_km,
+    distance_text:    `${raw.distance_km}km`,
+    price_per_person: raw.price_per_person,
+    price_text:       `¥${raw.price_per_person}/人`,
+    healthy_score:    raw.healthy_score,
+    kid_menu:         raw.kid_menu,
+    wheelchair:       raw.wheelchair,
+    reservable:       raw.reservable,
+    wait_minutes:     wait.wait_minutes,
+    wait_text:        wait.wait_text,
+    wait_status:      wait.status,
+    time_range:       `${dinnerTime} - ${dinnerEnd}`,
+    arrival_time:     dinnerTime,
+    badge,
+    score:            Math.round((raw._score || 0) * 100),
+    category:         'restaurant'
+  };
+}
+
+function buildRstBadge(wait, reservable) {
+  if (wait.status === 'no_wait')    return '✅ 无需等位';
+  if (wait.status === 'short_wait') return `⏱️ ${wait.wait_text}`;
+  if (reservable)                   return `📅 可预约·${wait.wait_text}`;
+  if (wait.status === 'long_wait')  return `⚠️ 等位${wait.wait_text}`;
+  return `🕐 ${wait.wait_text}`;
+}
+
+function minutesToTime(totalMinutes) {
+  const h = Math.floor(totalMinutes / 60) % 24;
+  const m = totalMinutes % 60;
+  return `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}`;
+}
+
+function getFallbackRestaurants(intent) {
+  const pool = RESTAURANTS_DB
+    .filter(r => r.suitable_for.includes(intent.group_type))
+    .slice(0, 3);
+  return pool.map(r => formatRestaurant({ ...r, _wait: { wait_minutes: 0, wait_text: '无需等位', status: 'no_wait' }, _score: 0.5 }, intent));
+}
+
+if (typeof module !== 'undefined' && module.exports) {
+  module.exports = { searchRestaurants, simulateWaitTime, computeRstScore, formatRestaurant, RESTAURANTS_DB };
+} else {
+  window.searchRestaurants = searchRestaurants;
+}
+
+
+// ── MOCK_EXEC (Tool 5 placeholder) ──────────────────────────
 const MOCK_EXEC = [
-  { name: "外婆家菜馆 — 4人位预约", icon: "🍽️", status: "ok", label: "预约成功" },
-  { name: "世纪公园 — 入园票×2大+1小", icon: "🎫", status: "ok", label: "购票成功" },
-  { name: "鲜花蛋糕配送到餐厅", icon: "💐", status: "wait", label: "配送中" },
-  { name: "计划发送给家人", icon: "📱", status: "ok", label: "已发送" }
+  { name: "餐厅预约", icon: "🍽️", status: "ok",      label: "预约成功" },
+  { name: "活动门票购买", icon: "🎫", status: "ok",   label: "购票成功" },
+  { name: "配送到餐厅", icon: "💐",  status: "wait",  label: "配送中"  },
+  { name: "计划发送给同行者", icon: "📱", status: "ok", label: "已发送" }
 ];
 
 // ══════════════════════════════════════════════════════════════
@@ -1034,17 +1686,40 @@ async function sendMessage() {
   const intro = `${intentSummary}。出发时间 ${intent.start_time}，活动半径 ${intent.radius_km}km，共 ${intent.adults} 人${childNote}${needNote}，为您规划约 ${intent.duration_hours} 小时行程：`;
 
   addMessage('ai', intro);
-  await delay(300);
-  showPlanCards(scenario);
-  updateTimeline(scenario);
-  lastPlanText = generateShareText(scenario);
-  currentPlan = scenario;
+
+  // ── Tool 2 + Tool 3 并发执行 ──────────────────────────────
+  showTyping();
+  const [actResult, rstResult] = await Promise.all([
+    searchActivities(intent, { mockDelayMs: 300 }),
+    searchRestaurants(intent, { mockDelayMs: 300 })
+  ]);
+  removeTyping();
+
+  // 合并候选池，取最优活动×2 + 最优餐厅×1
+  const topActivities = actResult.activities.slice(0, 2);
+  const topRestaurant = rstResult.restaurants[0];
+
+  if (!topRestaurant) {
+    addMessage('ai', '暂时找不到合适的餐厅，要不要换个方向试试？');
+    document.getElementById('send-btn').disabled = false;
+    return;
+  }
+
+  // 组合三段行程数据
+  const planItems = [
+    topActivities[0],
+    topRestaurant,
+    topActivities[1] || topActivities[0]
+  ].filter(Boolean);
+
+  showPlanCards(planItems);
+  updateTimelineFromPlan(planItems);
+  lastPlanText = generateShareTextFromPlan(planItems, intent);
+  currentPlan = planItems;
 }
 
-function showPlanCards(scenario) {
-  const places = MOCK_PLACES[scenario];
+function showPlanCards(planItems) {
   const chatArea = document.getElementById('chat-area');
-
   const cardContainer = document.createElement('div');
   cardContainer.className = 'msg ai';
   cardContainer.setAttribute('role', 'article');
@@ -1057,44 +1732,52 @@ function showPlanCards(scenario) {
 
   const bubble = document.createElement('div');
   bubble.className = 'msg-bubble';
-  bubble.style.padding = '0';
-  bubble.style.border = 'none';
-  bubble.style.background = 'transparent';
-  bubble.style.boxShadow = 'none';
-  bubble.style.maxWidth = '95%';
+  bubble.style.cssText = 'padding:0;border:none;background:transparent;box-shadow:none;max-width:95%';
 
   const cards = document.createElement('div');
   cards.className = 'plan-cards';
 
-  places.forEach((place, i) => {
+  planItems.forEach((item, i) => {
     const card = document.createElement('div');
     card.className = 'plan-card';
     card.setAttribute('role', 'article');
-    card.setAttribute('aria-label', `第${i+1}站：${place.name}`);
+    card.setAttribute('aria-label', `第${i+1}站：${item.name}`);
+
+    // 等位/状态信息（餐厅专属）
+    const waitInfo = item.category === 'restaurant'
+      ? `<div class="info-item">🕐 ${item.wait_text}</div>`
+      : '';
+    // 价格信息
+    const priceInfo = item.category === 'restaurant'
+      ? `<div class="info-item">💰 ${item.price_text}</div>`
+      : `<div class="info-item">🎫 ${item.price_text}</div>`;
+
+    const tagColor = ['blue','green','amber'][i] || 'blue';
+    const badge = item.badge ? `<span style="margin-left:8px;font-size:0.8em;">${item.badge}</span>` : '';
+
     card.innerHTML = `
       <div class="card-header">
-        <div class="card-step step-${i+1}" aria-label="第${i+1}站">0${i+1}</div>
-        <div>
-          <div class="card-title">${place.icon} ${place.name}</div>
-          <div class="card-meta">⏰ ${place.time}（约${place.duration}）${place.badge ? ' &nbsp;' + place.badge : ''}</div>
+        <div class="card-step step-\${i+1}" aria-label="第\${i+1}站">0\${i+1}</div>
+        <div style="flex:1">
+          <div class="card-title">\${item.icon} \${item.name}\${badge}</div>
+          <div class="card-meta">⏰ \${item.time_range}（约\${item.duration_text || item.duration_min+'分钟'}）</div>
         </div>
       </div>
       <div class="card-body">
-        <div class="card-desc">${place.desc}</div>
+        <div class="card-desc">\${item.desc}</div>
         <div class="card-tags">
-          ${place.tags.map(t => `<span class="tag tag-${i===0?'blue':i===1?'green':'amber'}">${t}</span>`).join('')}
+          \${item.tags.map(t => \`<span class="tag tag-\${tagColor}">\${t}</span>\`).join('')}
         </div>
         <div class="card-info-row">
-          <div class="info-item">⭐ ${place.rating}</div>
-          <div class="info-item">📍 ${place.distance}</div>
-          <div class="info-item">🏷️ ${place.type}</div>
+          <div class="info-item">⭐ \${item.rating}</div>
+          <div class="info-item">📍 \${item.distance_text}</div>
+          \${waitInfo}\${priceInfo}
         </div>
       </div>
     `;
     cards.appendChild(card);
   });
 
-  // Action Buttons
   const actions = document.createElement('div');
   actions.className = 'action-bar';
   actions.setAttribute('role', 'group');
@@ -1110,7 +1793,6 @@ function showPlanCards(scenario) {
       📤 分享
     </button>
   `;
-  // Add ripple to confirm btn
   actions.querySelector('.btn-confirm').addEventListener('click', addRipple);
 
   bubble.appendChild(cards);
@@ -1119,13 +1801,27 @@ function showPlanCards(scenario) {
   cardContainer.appendChild(bubble);
   chatArea.appendChild(cardContainer);
   chatArea.scrollTop = chatArea.scrollHeight;
-
   document.getElementById('send-btn').disabled = false;
-
-  // Speak summary
-  setTimeout(() => speakText(`好的！我为您规划了三站行程，第一站是${places[0].name}，${places[0].time}出发。`), 500);
+  setTimeout(() => speakText(`好的！我为您规划了\${planItems.length}站行程，第一站是\${planItems[0].name}，\${planItems[0].arrival_time}出发。`), 500);
 }
 
+function updateTimelineFromPlan(planItems) {
+  const tl = document.getElementById('timeline');
+  tl.innerHTML = planItems.map((item, i) => `
+    <div class="tl-item">
+      <div class="tl-dot \${i === 0 ? 'active' : 'upcoming'}" aria-label="\${i===0?'下一站':'计划中'}"></div>
+      <div class="tl-time">\${item.arrival_time}</div>
+      <div class="tl-name">\${item.icon} \${item.name}</div>
+      <div class="tl-sub">\${item.category === 'restaurant' ? item.cuisine : item.type} · \${item.duration_text || item.duration_min+'分钟'}</div>
+    </div>
+  `).join('');
+}
+
+function generateShareTextFromPlan(planItems, intent) {
+  const stops = planItems.map(p => `\${p.arrival_time} \${p.name}`).join('→');
+  const groupLabel = {family:'家人',friends:'朋友们',couple:'另一半',senior:'长辈'}[intent?.group_type] || '大家';
+  return `搞定了！和\${groupLabel}的行程：\${stops}。玩得开心 🎉`;
+}
 function addRipple(e) {
   const btn = e.currentTarget;
   const r = document.createElement('span');
@@ -1198,21 +1894,9 @@ function modifyPlan() {
   document.getElementById('main-input').focus();
 }
 
-function updateTimeline(scenario) {
-  const places = MOCK_PLACES[scenario];
-  const tl = document.getElementById('timeline');
-  tl.innerHTML = places.map((p, i) => `
-    <div class="tl-item">
-      <div class="tl-dot ${i === 0 ? 'active' : 'upcoming'}" aria-label="${i === 0 ? '下一站' : '计划中'}"></div>
-      <div class="tl-time">${p.time}</div>
-      <div class="tl-name">${p.icon} ${p.name}</div>
-      <div class="tl-sub">${p.type} · ${p.duration}</div>
-    </div>
-  `).join('');
-}
 
 function generateShareText(scenario) {
-  const places = MOCK_PLACES[scenario];
+  return '行程规划完成，出发吧！🎉';
   return `搞定了！${places[0].time}出发，先去${places[0].name}（${places[0].duration}），然后${places[1].time}去${places[1].name}，最后${places[2].time}顺路去${places[2].name}。玩的开心 🎉`;
 }
 
