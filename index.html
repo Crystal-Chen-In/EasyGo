@@ -971,11 +971,6 @@ function getFallbackActivities(intent) {
   return pool.map(a => formatActivity({ ...a, _score: 0.5 }, intent));
 }
 
-if (typeof module !== 'undefined' && module.exports) {
-  module.exports = { searchActivities, computeScore, formatActivity, ACTIVITIES_DB };
-} else {
-  window.searchActivities = searchActivities;
-}
 
 
 /**
@@ -1336,11 +1331,7 @@ function buildRstBadge(wait, reservable) {
   return `🕐 ${wait.wait_text}`;
 }
 
-function minutesToTime(totalMinutes) {
-  const h = Math.floor(totalMinutes / 60) % 24;
-  const m = totalMinutes % 60;
-  return `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}`;
-}
+
 
 function getFallbackRestaurants(intent) {
   const pool = RESTAURANTS_DB
@@ -1349,11 +1340,6 @@ function getFallbackRestaurants(intent) {
   return pool.map(r => formatRestaurant({ ...r, _wait: { wait_minutes: 0, wait_text: '无需等位', status: 'no_wait' }, _score: 0.5 }, intent));
 }
 
-if (typeof module !== 'undefined' && module.exports) {
-  module.exports = { searchRestaurants, simulateWaitTime, computeRstScore, formatRestaurant, RESTAURANTS_DB };
-} else {
-  window.searchRestaurants = searchRestaurants;
-}
 
 
 // ── MOCK_EXEC (Tool 5 placeholder) ──────────────────────────
@@ -1737,44 +1723,50 @@ function showPlanCards(planItems) {
   const cards = document.createElement('div');
   cards.className = 'plan-cards';
 
-  planItems.forEach((item, i) => {
+  planItems.forEach(function(item, i) {
     const card = document.createElement('div');
     card.className = 'plan-card';
     card.setAttribute('role', 'article');
-    card.setAttribute('aria-label', `第${i+1}站：${item.name}`);
+    card.setAttribute('aria-label', '第' + (i + 1) + '站：' + item.name);
 
-    // 等位/状态信息（餐厅专属）
     const waitInfo = item.category === 'restaurant'
-      ? `<div class="info-item">🕐 ${item.wait_text}</div>`
+      ? '<div class="info-item">🕐 ' + item.wait_text + '</div>'
       : '';
-    // 价格信息
     const priceInfo = item.category === 'restaurant'
-      ? `<div class="info-item">💰 ${item.price_text}</div>`
-      : `<div class="info-item">🎫 ${item.price_text}</div>`;
+      ? '<div class="info-item">💰 ' + item.price_text + '</div>'
+      : '<div class="info-item">🎫 ' + item.price_text + '</div>';
 
-    const tagColor = ['blue','green','amber'][i] || 'blue';
-    const badge = item.badge ? `<span style="margin-left:8px;font-size:0.8em;">${item.badge}</span>` : '';
+    const tagColors = ['blue', 'green', 'amber'];
+    const tagColor = tagColors[i] || 'blue';
+    const badgeHtml = item.badge
+      ? '<span style="margin-left:8px;font-size:0.8em;">' + item.badge + '</span>'
+      : '';
+    const durationDisplay = item.duration_text
+      ? item.duration_text
+      : (item.duration_min ? item.duration_min + '分钟' : '');
 
-    card.innerHTML = `
-      <div class="card-header">
-        <div class="card-step step-\${i+1}" aria-label="第\${i+1}站">0\${i+1}</div>
-        <div style="flex:1">
-          <div class="card-title">\${item.icon} \${item.name}\${badge}</div>
-          <div class="card-meta">⏰ \${item.time_range}（约\${item.duration_text || item.duration_min+'分钟'}）</div>
-        </div>
-      </div>
-      <div class="card-body">
-        <div class="card-desc">\${item.desc}</div>
-        <div class="card-tags">
-          \${item.tags.map(t => \`<span class="tag tag-\${tagColor}">\${t}</span>\`).join('')}
-        </div>
-        <div class="card-info-row">
-          <div class="info-item">⭐ \${item.rating}</div>
-          <div class="info-item">📍 \${item.distance_text}</div>
-          \${waitInfo}\${priceInfo}
-        </div>
-      </div>
-    `;
+    card.innerHTML =
+      '<div class="card-header">' +
+        '<div class="card-step step-' + (i + 1) + '" aria-label="第' + (i + 1) + '站">0' + (i + 1) + '</div>' +
+        '<div style="flex:1">' +
+          '<div class="card-title">' + item.icon + ' ' + item.name + badgeHtml + '</div>' +
+          '<div class="card-meta">⏰ ' + item.time_range + '（约' + durationDisplay + '）</div>' +
+        '</div>' +
+      '</div>' +
+      '<div class="card-body">' +
+        '<div class="card-desc">' + item.desc + '</div>' +
+        '<div class="card-tags">' +
+          item.tags.map(function(t) {
+            return '<span class="tag tag-' + tagColor + '">' + t + '</span>';
+          }).join('') +
+        '</div>' +
+        '<div class="card-info-row">' +
+          '<div class="info-item">⭐ ' + item.rating + '</div>' +
+          '<div class="info-item">📍 ' + item.distance_text + '</div>' +
+          waitInfo + priceInfo +
+        '</div>' +
+      '</div>';
+
     cards.appendChild(card);
   });
 
@@ -1782,17 +1774,17 @@ function showPlanCards(planItems) {
   actions.className = 'action-bar';
   actions.setAttribute('role', 'group');
   actions.setAttribute('aria-label', '方案操作');
-  actions.innerHTML = `
-    <button class="action-btn btn-confirm" onclick="confirmPlan()" aria-label="确认方案并一键预约执行">
-      ✅ 确认方案 · 一键执行
-    </button>
-    <button class="action-btn btn-modify" onclick="modifyPlan()" aria-label="修改行程方案">
-      ✏️ 修改
-    </button>
-    <button class="action-btn btn-share" onclick="showShareModal()" aria-label="分享行程给家人朋友">
-      📤 分享
-    </button>
-  `;
+  actions.innerHTML =
+    '<button class="action-btn btn-confirm" onclick="confirmPlan()" aria-label="确认方案并一键预约执行">' +
+      '✅ 确认方案 · 一键执行' +
+    '</button>' +
+    '<button class="action-btn btn-modify" onclick="modifyPlan()" aria-label="修改行程方案">' +
+      '✏️ 修改' +
+    '</button>' +
+    '<button class="action-btn btn-share" onclick="showShareModal()" aria-label="分享行程给家人朋友">' +
+      '📤 分享' +
+    '</button>';
+
   actions.querySelector('.btn-confirm').addEventListener('click', addRipple);
 
   bubble.appendChild(cards);
@@ -1802,25 +1794,37 @@ function showPlanCards(planItems) {
   chatArea.appendChild(cardContainer);
   chatArea.scrollTop = chatArea.scrollHeight;
   document.getElementById('send-btn').disabled = false;
-  setTimeout(() => speakText(`好的！我为您规划了\${planItems.length}站行程，第一站是\${planItems[0].name}，\${planItems[0].arrival_time}出发。`), 500);
+
+  var firstName = planItems[0] ? planItems[0].name : '';
+  var firstTime = planItems[0] ? planItems[0].arrival_time : '';
+  setTimeout(function() {
+    speakText('好的！我为您规划了' + planItems.length + '站行程，第一站是' + firstName + '，' + firstTime + '出发。');
+  }, 500);
 }
 
 function updateTimelineFromPlan(planItems) {
   const tl = document.getElementById('timeline');
-  tl.innerHTML = planItems.map((item, i) => `
-    <div class="tl-item">
-      <div class="tl-dot \${i === 0 ? 'active' : 'upcoming'}" aria-label="\${i===0?'下一站':'计划中'}"></div>
-      <div class="tl-time">\${item.arrival_time}</div>
-      <div class="tl-name">\${item.icon} \${item.name}</div>
-      <div class="tl-sub">\${item.category === 'restaurant' ? item.cuisine : item.type} · \${item.duration_text || item.duration_min+'分钟'}</div>
-    </div>
-  `).join('');
+  tl.innerHTML = planItems.map(function(item, i) {
+    const dotClass = i === 0 ? 'active' : 'upcoming';
+    const dotLabel = i === 0 ? '下一站' : '计划中';
+    const subText = item.category === 'restaurant' ? item.cuisine : item.type;
+    const durText = item.duration_text || (item.duration_min ? item.duration_min + '分钟' : '');
+    return '<div class="tl-item">' +
+      '<div class="tl-dot ' + dotClass + '" aria-label="' + dotLabel + '"></div>' +
+      '<div class="tl-time">' + item.arrival_time + '</div>' +
+      '<div class="tl-name">' + item.icon + ' ' + item.name + '</div>' +
+      '<div class="tl-sub">' + subText + ' · ' + durText + '</div>' +
+      '</div>';
+  }).join('');
 }
 
 function generateShareTextFromPlan(planItems, intent) {
-  const stops = planItems.map(p => `\${p.arrival_time} \${p.name}`).join('→');
-  const groupLabel = {family:'家人',friends:'朋友们',couple:'另一半',senior:'长辈'}[intent?.group_type] || '大家';
-  return `搞定了！和\${groupLabel}的行程：\${stops}。玩得开心 🎉`;
+  const stops = planItems.map(function(p) {
+    return p.arrival_time + ' ' + p.name;
+  }).join('→');
+  const groupMap = { family: '家人', friends: '朋友们', couple: '另一半', senior: '长辈' };
+  const groupLabel = (intent && groupMap[intent.group_type]) ? groupMap[intent.group_type] : '大家';
+  return '搞定了！和' + groupLabel + '的行程：' + stops + '。玩得开心 🎉';
 }
 function addRipple(e) {
   const btn = e.currentTarget;
