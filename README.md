@@ -1,2 +1,2 @@
 # EasyGo
-No more,just go
+No more waiting,just go
