@@ -1,2 +1,2 @@
 # EasyGo
-Slogan待补充
+No more,just go
