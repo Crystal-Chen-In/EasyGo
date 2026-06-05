@@ -751,28 +751,16 @@
 
       <!-- KEYWORD FILTER BAR -->
       <div class="keyword-filter-bar" role="group" aria-label="关键字筛选，点击可添加到输入框" data-desc="关键字栏：快速添加标签到输入，帮助助手更准确地推荐活动。">
-        <span class="keyword-filter-label">🏷 关键字：</span>
-        <button class="kw-btn" onclick="appendKeyword(this,'剧院')" data-desc="添加关键字：剧院。">🎭 剧院</button>
-        <button class="kw-btn" onclick="appendKeyword(this,'餐厅')" data-desc="添加关键字：餐厅。">🍜 餐厅</button>
+        <span class="keyword-filter-label">关键字：</span>
         <button class="kw-btn" onclick="appendKeyword(this,'游乐场')" data-desc="添加关键字：游乐场。">🎡 游乐场</button>
         <button class="kw-btn" onclick="appendKeyword(this,'商场')" data-desc="添加关键字：商场。">🛍️ 商场</button>
         <button class="kw-btn" onclick="appendKeyword(this,'亲子')" data-desc="添加关键字：亲子。">👶 亲子</button>
-        <button class="kw-btn" onclick="appendKeyword(this,'展览')" data-desc="添加关键字：展览。">🖼️ 展览</button>
         <button class="kw-btn" onclick="appendKeyword(this,'citywalk')" data-desc="添加关键字：citywalk。">🚶 Citywalk</button>
         <button class="kw-btn" onclick="appendKeyword(this,'公园')" data-desc="添加关键字：公园。">🌿 公园</button>
         <button class="kw-btn" onclick="appendKeyword(this,'咖啡')" data-desc="添加关键字：咖啡。">☕ 咖啡</button>
-        <button class="kw-btn" onclick="appendKeyword(this,'电影院')" data-desc="添加关键字：电影院。">🎬 电影院</button>
-        <button class="kw-btn" onclick="appendKeyword(this,'温泉')" data-desc="添加关键字：温泉。">♨️ 温泉</button>
-        <button class="kw-btn" onclick="appendKeyword(this,'戏院')" data-desc="添加关键字：戏院。">🎭 戏院</button>
-        <button class="kw-btn" onclick="appendKeyword(this,'酒楼')" data-desc="添加关键字：酒楼。">🍽️ 酒楼</button>
-        <button class="kw-btn" onclick="appendKeyword(this,'游乐园')" data-desc="添加关键字：游乐园。">🎡 游乐园</button>
         <button class="kw-btn" onclick="appendKeyword(this,'展览')" data-desc="添加关键字：展览。">🏛️ 展览</button>
-        <button class="kw-btn" onclick="appendKeyword(this,'购物中心')" data-desc="添加关键字：购物中心。">🛍️ 购物中心</button>
         <button class="kw-btn" onclick="appendKeyword(this,'KTV')" data-desc="添加关键字：KTV。">🎤 KTV</button>
         <button class="kw-btn" onclick="appendKeyword(this,'火锅')" data-desc="添加关键字：火锅。">🥘 火锅</button>
-        <button class="kw-btn" onclick="appendKeyword(this,'游泳')" data-desc="添加关键字：游泳。">🏊 游泳</button>
-        <button class="kw-btn" onclick="appendKeyword(this,'保龄球')" data-desc="添加关键字：保龄球。">🎳 保龄球</button>
-        <button class="kw-btn" onclick="appendKeyword(this,'亲子乐园')" data-desc="添加关键字：亲子乐园。">🎠 亲子乐园</button>
       </div>
     </section>
   </main>
@@ -1133,11 +1121,15 @@ async function sendMessage() {
       }
     }
     removeTyping();
+    var parsedIntent = null;
     try {
-      intent = parseIntentJSON(updatedRaw);
+      parsedIntent = parseIntentJSON(updatedRaw);
     } catch(e) {
-      intent = currentPlan.intent;
+      parsedIntent = currentPlan.intent;
     }
+    intent = typeof mergeIntentWithModification === 'function'
+      ? mergeIntentWithModification(currentPlan.intent, parsedIntent, text)
+      : parsedIntent;
     isModifying = false;
     input.placeholder = '例如：想和老婆孩子（孩子5岁）下午出去玩，别太远，孩子喜欢玩水，大人想吃个好的…';
   } else {

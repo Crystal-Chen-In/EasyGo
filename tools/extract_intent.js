@@ -142,16 +142,140 @@ function normalizeIntentFromText(intent, text) {
     ...intent,
     children: Array.isArray(intent.children) ? intent.children.slice() : [],
     preferences: Array.isArray(intent.preferences) ? intent.preferences.slice() : [],
+    avoid_preferences: Array.isArray(intent.avoid_preferences) ? intent.avoid_preferences.slice() : [],
     special_needs: Array.isArray(intent.special_needs) ? intent.special_needs.slice() : [],
     missing_fields: Array.isArray(intent.missing_fields) ? intent.missing_fields.slice() : []
   };
 
   applyFamilyAndHeadcountHints(normalized, t);
+  applyTimeHints(normalized, t);
   applyPositivePreferenceHints(normalized, t);
   applySpecialNeedHints(normalized, t);
   applyNegativePreferenceHints(normalized, t);
   dedupeIntentArrays(normalized);
   return normalized;
+}
+
+function mergeIntentWithModification(baseIntent, parsedIntent, modifyText) {
+  const text = String(modifyText || '');
+  const merged = normalizeIntentFromText({
+    ...(baseIntent || {}),
+    ...(parsedIntent || {}),
+    preferences: [
+      ...((baseIntent && Array.isArray(baseIntent.preferences)) ? baseIntent.preferences : []),
+      ...((parsedIntent && Array.isArray(parsedIntent.preferences)) ? parsedIntent.preferences : [])
+    ],
+    avoid_preferences: [
+      ...((baseIntent && Array.isArray(baseIntent.avoid_preferences)) ? baseIntent.avoid_preferences : []),
+      ...((parsedIntent && Array.isArray(parsedIntent.avoid_preferences)) ? parsedIntent.avoid_preferences : [])
+    ],
+    special_needs: [
+      ...((baseIntent && Array.isArray(baseIntent.special_needs)) ? baseIntent.special_needs : []),
+      ...((parsedIntent && Array.isArray(parsedIntent.special_needs)) ? parsedIntent.special_needs : [])
+    ]
+  }, text);
+
+  if (!mentionsGroupOrPeople(text) && baseIntent) {
+    merged.group_type = baseIntent.group_type;
+    merged.adults = baseIntent.adults;
+    merged.children = Array.isArray(baseIntent.children) ? baseIntent.children.slice() : [];
+    if (!merged.children.length) {
+      merged.preferences = merged.preferences.filter(p => p !== '亲子');
+    }
+  }
+
+  dedupeIntentArrays(merged);
+  return merged;
+}
+
+function mentionsGroupOrPeople(text) {
+  return /朋友|同事|同学|闺蜜|哥们|老婆|老公|媳妇|爱人|对象|孩子|宝宝|小孩|儿子|女儿|爸妈|父母|老人|长辈|一家|(\d+|一|二|两|三|四|五|六|七|八|九|十)\s*(个|位|名)?\s*(人|大人|成人|孩子)/.test(text);
+}
+
+function applyTimeHints(intent, text) {
+  const parsed = inferStartTimeFromText(text, new Date());
+  if (parsed) {
+    intent.start_time = parsed;
+    intent.missing_fields = intent.missing_fields.filter(f => f !== 'start_time');
+  }
+}
+
+function inferStartTimeFromText(text, now) {
+  const t = String(text || '');
+  if (!t) return null;
+  if (/现在|马上|立刻|一会儿|待会儿|等会儿/.test(t)) return roundUpTime(now, 15);
+
+  const period = detectTimePeriod(t);
+  const explicit = parseExplicitClockTime(t, period);
+  if (explicit) return explicit;
+  if (!period) return null;
+  return choosePeriodStart(period, now);
+}
+
+function detectTimePeriod(text) {
+  if (/凌晨|半夜/.test(text)) return 'late_night';
+  if (/早上|上午|早晨|清晨|一早|早一点/.test(text)) return 'morning';
+  if (/中午|午饭|午餐/.test(text)) return 'noon';
+  if (/下午|午后|下午茶/.test(text)) return 'afternoon';
+  if (/晚上|傍晚|今晚|夜里|晚饭|晚餐/.test(text)) return 'evening';
+  return null;
+}
+
+function parseExplicitClockTime(text, period) {
+  const match = text.match(/(?:早上|上午|早晨|清晨|中午|下午|午后|晚上|傍晚|今晚|夜里)?\s*(\d{1,2})\s*(?:点|时|:|：)\s*(\d{0,2})/);
+  if (!match) return null;
+  let h = parseInt(match[1], 10);
+  let m = match[2] ? parseInt(match[2], 10) : 0;
+  if (Number.isNaN(h)) return null;
+  if (Number.isNaN(m)) m = 0;
+  if ((period === 'afternoon' || period === 'evening') && h < 12) h += 12;
+  if (period === 'noon' && h < 11) h += 12;
+  if ((period === 'morning' || period === 'late_night') && h === 12) h = 0;
+  if (h > 23 || m > 59) return null;
+  return formatTime(h, m);
+}
+
+function choosePeriodStart(period, now) {
+  const windows = {
+    late_night: { start: 0, end: 6, defaultTime: '00:30' },
+    morning: { start: 6, end: 12, defaultTime: '09:00' },
+    noon: { start: 11, end: 14, defaultTime: '12:00' },
+    afternoon: { start: 12, end: 18, defaultTime: '14:00' },
+    evening: { start: 18, end: 24, defaultTime: '19:00' }
+  };
+  const win = windows[period];
+  if (!win) return null;
+  const currentMinutes = now.getHours() * 60 + now.getMinutes();
+  const startMinutes = win.start * 60;
+  const endMinutes = win.end * 60;
+  const defaultMinutes = timeToMinutes(win.defaultTime);
+  if (currentMinutes >= startMinutes && currentMinutes < endMinutes) {
+    return minutesToHHMM(Math.max(defaultMinutes, roundUpMinutes(currentMinutes, 30)));
+  }
+  return win.defaultTime;
+}
+
+function roundUpTime(date, stepMin) {
+  return minutesToHHMM(roundUpMinutes(date.getHours() * 60 + date.getMinutes(), stepMin));
+}
+
+function roundUpMinutes(totalMinutes, stepMin) {
+  return Math.ceil(totalMinutes / stepMin) * stepMin;
+}
+
+function timeToMinutes(time) {
+  const parts = time.split(':').map(Number);
+  return parts[0] * 60 + parts[1];
+}
+
+function minutesToHHMM(totalMinutes) {
+  const h = Math.floor(totalMinutes / 60) % 24;
+  const m = totalMinutes % 60;
+  return formatTime(h, m);
+}
+
+function formatTime(h, m) {
+  return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
 }
 
 function applyFamilyAndHeadcountHints(intent, text) {
@@ -200,6 +324,10 @@ function applyPositivePreferenceHints(intent, text) {
     { re: /购物|逛街|商场|购物中心|买东西/, pref: '购物' },
     { re: /自然|公园|爬山|户外|露营|骑行/, pref: '户外' },
     { re: /下午茶|甜品|咖啡|蛋糕|茶饮/, pref: '下午茶' },
+    { re: /火锅|涮肉|毛肚/, pref: '火锅' },
+    { re: /烤肉|烧烤|烤串|烤牛肉|烤五花/, pref: '烧烤' },
+    { re: /上海菜|本帮菜|沪菜|老上海/, pref: '本帮菜' },
+    { re: /江浙菜|杭帮菜|苏帮菜/, pref: '江浙菜' },
     { re: /电影|影院|观影|看电影/, pref: '电影' },
     { re: /酒店|住宿|住酒店|民宿/, pref: '酒店' },
     { re: /室内|雨天|下雨|太热|太冷/, pref: '室内' }
@@ -208,6 +336,9 @@ function applyPositivePreferenceHints(intent, text) {
     if (rule.re.test(text) && !intent.preferences.includes(rule.pref)) {
       intent.preferences.push(rule.pref);
     }
+  }
+  for (const pref of extractPositiveTerms(text)) {
+    if (!intent.preferences.includes(pref)) intent.preferences.push(pref);
   }
 }
 
@@ -224,8 +355,12 @@ function applyNegativePreferenceHints(intent, text) {
   intent.preferences = intent.preferences.filter(pref => {
     if (avoided.includes(pref)) return false;
     const prefTags = POSITIVE_PREF_TAGS[pref] || [pref];
-    return !prefTags.some(tag => avoidTagSet.has(tag) || [...avoidTagSet].some(a => a.includes(tag) || tag.includes(a)));
+    return !prefTags.some(tag => avoidTagSet.has(tag) || [...avoidTagSet].some(a => tag.includes(a)));
   });
+
+  if (avoided.some(pref => ['轻食','健康饮食','减脂餐','沙拉'].includes(pref))) {
+    intent.special_needs = intent.special_needs.filter(n => n !== '健康饮食');
+  }
 }
 
 function applySpecialNeedHints(intent, text) {
@@ -235,23 +370,36 @@ function applySpecialNeedHints(intent, text) {
     { re: /轮椅|无障碍|行动不便/, need: '无障碍' }
   ];
   for (const rule of rules) {
-    if (rule.re.test(text) && !intent.special_needs.includes(rule.need)) {
+    if (rule.re.test(text) && !isNegatedFoodHealth(text) && !intent.special_needs.includes(rule.need)) {
       intent.special_needs.push(rule.need);
     }
   }
+}
+
+function isNegatedFoodHealth(text) {
+  return /(不想|不要|不吃|别|换成|排除|避开)[^，。；,;！!？?]{0,12}(轻食|减脂|减肥|健康餐|沙拉|低卡|低脂)/.test(text);
 }
 
 const NEGATIVE_PREF_TAGS = {
   '公园': ['公园','park','森林','草坪'],
   '户外': ['户外','公园','骑行','森林','草坪'],
   '展览': ['展览','博物馆','美术馆','艺术'],
-  '博物馆': ['博物馆','展览','室内','科普'],
+  '博物馆': ['博物馆','museum','科普'],
   '商场': ['商场','购物','mall'],
   '购物': ['购物','商场','mall'],
   '餐厅': ['餐厅','美食'],
   '咖啡': ['咖啡','下午茶'],
+  '轻食': ['轻食','健康','沙拉','低卡','减脂'],
+  '健康饮食': ['轻食','健康','沙拉','低卡','减脂'],
+  '健康餐': ['轻食','健康','沙拉','低卡','减脂'],
+  '减肥餐': ['轻食','健康','沙拉','低卡','减脂'],
+  '减脂餐': ['轻食','健康','沙拉','低卡','减脂'],
+  '沙拉': ['沙拉','轻食','低卡'],
   '火锅': ['火锅'],
   '烧烤': ['烧烤','烤串'],
+  '烤肉': ['烧烤','烤肉','烤串'],
+  '上海菜': ['本帮菜','上海菜','沪菜','上海特色'],
+  '本帮菜': ['本帮菜','上海菜','沪菜','上海特色'],
   '日料': ['日料','寿司'],
   '西餐': ['西餐','汉堡','披萨'],
   '甜品': ['甜品','蛋糕','下午茶'],
@@ -262,24 +410,123 @@ const NEGATIVE_PREF_TAGS = {
 const POSITIVE_PREF_TAGS = {
   '亲子': ['亲子','孩子','游乐'],
   'citywalk': ['citywalk','散步','逛逛'],
-  '展览': ['展览','博物馆','美术馆'],
+  '展览': ['展览','艺术'],
   '购物': ['购物','逛街','商场'],
   '户外': ['户外','自然','公园','爬山'],
   '下午茶': ['下午茶','甜品','咖啡','蛋糕'],
+  '火锅': ['火锅','涮肉','毛肚'],
+  '烧烤': ['烧烤','烤肉','烤串'],
+  '本帮菜': ['本帮菜','上海菜','沪菜','老上海'],
+  '江浙菜': ['江浙菜','杭帮菜','苏帮菜'],
   '电影': ['电影','影院','观影','看电影'],
   '酒店': ['酒店','住宿','民宿']
 };
 
 function detectAvoidPreferences(text) {
   const keywords = Object.keys(NEGATIVE_PREF_TAGS);
-  const result = [];
+  const result = extractNegatedTerms(text);
   for (const keyword of keywords) {
     const escaped = escapeRegExp(keyword);
     const before = new RegExp(`(不想|不要|不去|别去|不考虑|避开|排除|别安排|不要安排|不安排|不喜欢|不爱|没兴趣)[^，。；,;！!？?]{0,10}${escaped}`);
-    const after = new RegExp(`${escaped}[^，。；,;！!？?]{0,8}(不想去|不想要|不要|不去|算了|别安排|不喜欢|不爱|没兴趣)`);
+    const after = new RegExp(`${escaped}[^，。；,;！!？?]{0,8}(不想去|不想要|不去|算了|别安排|不喜欢|不爱|没兴趣)`);
     if (before.test(text) || after.test(text)) result.push(keyword);
   }
-  return [...new Set(result)];
+  return [...new Set(expandTermsWithDomainMatches(result))];
+}
+
+function extractNegatedTerms(text) {
+  const result = [];
+  const stopWords = new Set(['吃','去','安排','推荐','换成','改成','了','的','一下','一点','之类','之类的']);
+  const re = /(不想|不要|不吃|不去|别去|别吃|别安排|不要安排|不安排|不考虑|避开|排除|不喜欢|不爱|没兴趣)\s*([^，。；,;！!？?\s]{1,12})/g;
+  for (const m of text.matchAll(re)) {
+    let term = (m[2] || '').trim();
+    term = term.replace(/^(吃|去|安排|推荐)/, '');
+    term = term.replace(/(了|的|一下|一点|之类|之类的)$/g, '');
+    if (term && !stopWords.has(term)) result.push(term);
+  }
+  return result;
+}
+
+function extractPositiveTerms(text) {
+  const result = [];
+  const positiveRe = /(想要|想去|想吃|想逛|想看|换成|改成|安排|推荐|来点|吃点|去|逛)\s*([^，。；,;！!？?\s]{1,20})/g;
+  for (const m of text.matchAll(positiveRe)) {
+    result.push(...matchKnownDomainTerms(m[2] || ''));
+  }
+
+  const clauses = String(text || '').split(/[，。；,;！!？?]/);
+  for (const clause of clauses) {
+    if (/(不要|不想|不吃|不去|别|避开|排除|不喜欢|没兴趣)/.test(clause)) continue;
+    if (/(想|换成|改成|安排|推荐|来点|吃|去|逛|看)/.test(clause)) {
+      result.push(...matchKnownDomainTerms(clause));
+    }
+  }
+
+  return [...new Set(expandTermsWithDomainMatches(result))];
+}
+
+let DOMAIN_TERMS_CACHE = null;
+
+function getDomainTerms() {
+  if (DOMAIN_TERMS_CACHE) return DOMAIN_TERMS_CACHE;
+
+  const terms = [];
+  const activities = getRuntimeActivitiesDB();
+  const restaurants = getRuntimeRestaurantsDB();
+
+  activities.forEach(a => {
+    terms.push(a.name, a.type);
+    if (Array.isArray(a.tags)) terms.push(...a.tags);
+  });
+  restaurants.forEach(r => {
+    terms.push(r.name, r.cuisine);
+    if (Array.isArray(r.tags)) terms.push(...r.tags);
+  });
+
+  [NEGATIVE_PREF_TAGS, POSITIVE_PREF_TAGS].forEach(map => {
+    Object.keys(map).forEach(k => {
+      terms.push(k);
+      if (Array.isArray(map[k])) terms.push(...map[k]);
+    });
+  });
+
+  DOMAIN_TERMS_CACHE = [...new Set(terms.filter(t => typeof t === 'string' && t.trim().length >= 2))]
+    .sort((a, b) => b.length - a.length);
+  return DOMAIN_TERMS_CACHE;
+}
+
+function getRuntimeActivitiesDB() {
+  if (typeof window !== 'undefined' && Array.isArray(window.ACTIVITIES_DB)) return window.ACTIVITIES_DB;
+  if (typeof module !== 'undefined' && module.exports) {
+    try { return require('./search_activities.js').ACTIVITIES_DB || []; } catch (_) {}
+  }
+  return [];
+}
+
+function getRuntimeRestaurantsDB() {
+  if (typeof window !== 'undefined' && Array.isArray(window.RESTAURANTS_DB)) return window.RESTAURANTS_DB;
+  if (typeof module !== 'undefined' && module.exports) {
+    try { return require('./search_restaurants.js').RESTAURANTS_DB || []; } catch (_) {}
+  }
+  return [];
+}
+
+function matchKnownDomainTerms(fragment) {
+  const s = String(fragment || '');
+  if (!s) return [];
+  return getDomainTerms().filter(term => s.includes(term) || term.includes(s));
+}
+
+function expandTermsWithDomainMatches(terms) {
+  const result = [];
+  terms.forEach(term => {
+    if (!term) return;
+    result.push(term);
+    result.push(...matchKnownDomainTerms(term));
+    const mapped = NEGATIVE_PREF_TAGS[term] || POSITIVE_PREF_TAGS[term] || [];
+    result.push(...mapped);
+  });
+  return result;
 }
 
 function extractChildAges(text) {
@@ -579,9 +826,11 @@ async function generateClarifyQuestion(missingFields, apiKey) {
 // ── 导出（浏览器 + Node 双兼容） ──────────────────────────────
 
 if (typeof module !== 'undefined' && module.exports) {
-  module.exports = { extractIntent, ruleBasedFallback, normalizeIntentFromText, parseIntentJSON, validateIntent, applyDefaults };
+  module.exports = { extractIntent, ruleBasedFallback, normalizeIntentFromText, mergeIntentWithModification, inferStartTimeFromText, parseIntentJSON, validateIntent, applyDefaults };
 } else {
   window.extractIntent = extractIntent;
   window.ruleBasedFallback = ruleBasedFallback;
   window.normalizeIntentFromText = normalizeIntentFromText;
+  window.mergeIntentWithModification = mergeIntentWithModification;
+  window.inferStartTimeFromText = inferStartTimeFromText;
 }

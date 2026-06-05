@@ -743,8 +743,15 @@ async function searchRestaurants(intent, options = {}) {
       r._wait.wait_minutes <= maxWaitMin || r.reservable
     );
 
+    const hasRestaurantPrefs = (intent.preferences || []).length > 0;
+    if (hasRestaurantPrefs) {
+      const preferred = candidates.filter(r => restaurantPreferenceScore(r, intent) > 0);
+      if (preferred.length >= Math.min(limit, 3)) candidates = preferred;
+    }
+
     // 4. 健康饮食场景：healthy_score 低的餐厅降权
-    const needHealthy = (intent.special_needs || []).includes('健康饮食');
+    const needHealthy = (intent.special_needs || []).includes('健康饮食')
+      && !(intent.avoid_preferences || []).some(p => ['轻食','健康饮食','减脂餐','沙拉'].includes(p));
 
     // 5. 综合评分排序
     candidates = candidates
@@ -775,11 +782,35 @@ async function searchRestaurants(intent, options = {}) {
 const AVOID_RESTAURANT_TAG_MAP = {
   '餐厅': ['餐厅','美食'],
   '咖啡': ['咖啡','下午茶'],
+  '轻食': ['轻食','健康','沙拉','低卡','减脂'],
+  '健康饮食': ['轻食','健康','沙拉','低卡','减脂'],
+  '健康餐': ['轻食','健康','沙拉','低卡','减脂'],
+  '减肥餐': ['轻食','健康','沙拉','低卡','减脂'],
+  '减脂餐': ['轻食','健康','沙拉','低卡','减脂'],
+  '沙拉': ['沙拉','轻食','低卡'],
   '火锅': ['火锅'],
   '烧烤': ['烧烤','烤串'],
+  '烤肉': ['烧烤','烤肉','烤串'],
+  '上海菜': ['本帮菜','上海菜','沪菜','上海特色'],
+  '本帮菜': ['本帮菜','上海菜','沪菜','上海特色'],
   '日料': ['日料','寿司'],
   '西餐': ['西餐','汉堡','披萨'],
   '甜品': ['甜品','蛋糕','下午茶'],
+  '素食': ['素食']
+};
+
+const RESTAURANT_PREF_TAG_MAP = {
+  '火锅': ['火锅','毛肚','牛肉'],
+  '烧烤': ['烧烤','烤串','烤肉','羊肉串'],
+  '烤肉': ['烧烤','烤肉','烤串'],
+  '本帮菜': ['本帮菜','上海特色','老字号','上海菜'],
+  '上海菜': ['本帮菜','上海特色','老字号','上海菜'],
+  '江浙菜': ['江浙菜','苏帮菜','杭州菜'],
+  '日料': ['日料','寿司','烧鸟'],
+  '西餐': ['西餐','汉堡','披萨'],
+  '咖啡': ['咖啡','下午茶'],
+  '轻食': ['轻食','健康','沙拉','低卡'],
+  '健康饮食': ['轻食','健康','沙拉','低卡'],
   '素食': ['素食']
 };
 
@@ -788,14 +819,30 @@ function isAvoidedRestaurant(restaurant, intent) {
   if (avoidPrefs.length === 0) return false;
 
   return avoidPrefs.some(pref => {
-    const tags = AVOID_RESTAURANT_TAG_MAP[pref];
-    if (!tags) return false;
+    const tags = AVOID_RESTAURANT_TAG_MAP[pref] || [pref];
     return tags.some(tag =>
       (restaurant.name && restaurant.name.includes(tag)) ||
       (restaurant.cuisine && restaurant.cuisine.includes(tag)) ||
       restaurant.tags.some(t => t.includes(tag) || tag.includes(t))
     );
   });
+}
+
+function restaurantPreferenceScore(restaurant, intent) {
+  const prefs = intent && Array.isArray(intent.preferences) ? intent.preferences : [];
+  if (prefs.length === 0) return 0;
+
+  let matched = 0;
+  prefs.forEach(pref => {
+    const tags = RESTAURANT_PREF_TAG_MAP[pref] || [pref];
+    const ok = tags.some(tag =>
+      (restaurant.name && restaurant.name.includes(tag)) ||
+      (restaurant.cuisine && restaurant.cuisine.includes(tag)) ||
+      restaurant.tags.some(t => t.includes(tag) || tag.includes(t))
+    );
+    if (ok) matched++;
+  });
+  return matched / prefs.length;
 }
 
 function computeRstScore(r, intent, needHealthy) {
@@ -824,6 +871,7 @@ function computeRstScore(r, intent, needHealthy) {
   // 5. 距离
   const distScore = Math.max(0, 1 - r.distance_km / (intent.radius_km * 1.2));
   score += RST_SCORE_WEIGHTS.distance * distScore;
+  score += 0.25 * restaurantPreferenceScore(r, intent);
 
   return score;
 }
@@ -893,5 +941,6 @@ function getFallbackRestaurants(intent) {
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = { searchRestaurants, simulateWaitTime, computeRstScore, formatRestaurant, isAvoidedRestaurant, RESTAURANTS_DB };
 } else {
+  window.RESTAURANTS_DB = RESTAURANTS_DB;
   window.searchRestaurants = searchRestaurants;
 }

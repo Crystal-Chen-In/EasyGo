@@ -545,13 +545,27 @@ async function searchActivities(intent, options = {}) {
 const AVOID_ACTIVITY_TAG_MAP = {
   '公园': ['公园','森林','草坪'],
   '户外': ['户外','公园','森林','草坪','骑行'],
+  '亲子': ['亲子','儿童','孩子','互动','游乐'],
   '展览': ['展览','博物馆','美术馆','艺术'],
-  '博物馆': ['博物馆','展览','科普'],
+  '博物馆': ['博物馆','museum','科普'],
   '商场': ['商场','购物','mall'],
+  '购物中心': ['商场','购物','mall'],
   '购物': ['购物','商场','mall'],
   '咖啡': ['咖啡','下午茶'],
   '电影': ['电影','影院','观影'],
   'citywalk': ['citywalk','散步','街区']
+};
+
+const AVOID_ACTIVITY_TYPE_MAP = {
+  '公园': ['park'],
+  '户外': ['park', 'outdoor'],
+  '展览': ['exhibition', 'museum'],
+  '博物馆': ['museum'],
+  '美术馆': ['museum', 'exhibition'],
+  '商场': ['mall'],
+  '购物': ['mall'],
+  '购物中心': ['mall'],
+  'citywalk': ['citywalk']
 };
 
 function isAvoidedActivity(activity, intent) {
@@ -559,8 +573,8 @@ function isAvoidedActivity(activity, intent) {
   if (avoidPrefs.length === 0) return false;
 
   return avoidPrefs.some(pref => {
-    if (pref === '公园' && activity.type === 'park') return true;
-    if (pref === '户外' && ['park', 'outdoor'].includes(activity.type)) return true;
+    const avoidTypes = AVOID_ACTIVITY_TYPE_MAP[pref] || [];
+    if (avoidTypes.includes(activity.type)) return true;
     const tags = AVOID_ACTIVITY_TAG_MAP[pref] || [pref];
     return tags.some(tag =>
       (activity.name && activity.name.includes(tag)) ||
@@ -579,9 +593,7 @@ function computeScore(activity, intent) {
   score += SCORE_WEIGHTS.distance * distScore;
   const prefs = intent.preferences || [];
   if (prefs.length > 0) {
-    const matchCount = prefs.filter(p =>
-      activity.tags.some(t => t.includes(p) || p.includes(t))
-    ).length;
+    const matchCount = prefs.filter(p => activityMatchesPreference(activity, p)).length;
     score += SCORE_WEIGHTS.preference * (matchCount / prefs.length);
   } else {
     score += SCORE_WEIGHTS.preference * 0.5;
@@ -591,6 +603,15 @@ function computeScore(activity, intent) {
     score += SCORE_WEIGHTS.child_safety * (cf ? 1.0 : 0.0);
   }
   return score;
+}
+
+function activityMatchesPreference(activity, pref) {
+  const tags = ACTIVITY_KEYWORD_TAG_MAP[pref] || AVOID_ACTIVITY_TAG_MAP[pref] || [pref];
+  return tags.some(tag =>
+    (activity.name && activity.name.includes(tag)) ||
+    (activity.type && activity.type.includes(tag)) ||
+    activity.tags.some(t => t.includes(tag) || tag.includes(t))
+  );
 }
 
 function diversify(sorted, limit) {
