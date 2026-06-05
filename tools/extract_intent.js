@@ -106,6 +106,8 @@ async function extractIntent(userText, options = {}) {
     usedFallback = true;
   }
 
+  intent = normalizeIntentFromText(intent, userText);
+
   // 3. 校验必填字段
   const validation = validateIntent(intent);
   if (!validation.ok) {
@@ -132,6 +134,190 @@ async function extractIntent(userText, options = {}) {
   // 4. 补全可选字段的默认值
   intent = applyDefaults(intent);
   return { ok: true, intent, source: usedFallback ? 'fallback' : 'ai' };
+}
+
+function normalizeIntentFromText(intent, text) {
+  const t = String(text || '');
+  const normalized = {
+    ...intent,
+    children: Array.isArray(intent.children) ? intent.children.slice() : [],
+    preferences: Array.isArray(intent.preferences) ? intent.preferences.slice() : [],
+    special_needs: Array.isArray(intent.special_needs) ? intent.special_needs.slice() : [],
+    missing_fields: Array.isArray(intent.missing_fields) ? intent.missing_fields.slice() : []
+  };
+
+  applyFamilyAndHeadcountHints(normalized, t);
+  applyPositivePreferenceHints(normalized, t);
+  applySpecialNeedHints(normalized, t);
+  applyNegativePreferenceHints(normalized, t);
+  dedupeIntentArrays(normalized);
+  return normalized;
+}
+
+function applyFamilyAndHeadcountHints(intent, text) {
+  const hasChildMention = /孩子|宝宝|小孩|小朋友|儿子|女儿|娃|一家三口/.test(text);
+  const hasSpouseMention = /老婆|老公|媳妇|爱人|太太|先生|妻子|丈夫|另一半|对象/.test(text);
+  const explicitAdults = extractExplicitAdults(text);
+  const explicitTotal = extractExplicitTotalPeople(text);
+
+  if (hasChildMention) {
+    intent.group_type = 'family';
+    const ages = extractChildAges(text);
+    if (intent.children.length === 0) {
+      if (ages.length > 0) intent.children = ages.map(age => ({ age }));
+      else intent.children = [{ age: 5 }];
+    }
+    if (!intent.preferences.includes('亲子')) intent.preferences.push('亲子');
+  } else if (hasSpouseMention) {
+    intent.group_type = 'couple';
+  }
+
+  if (explicitAdults !== null) {
+    intent.adults = explicitAdults;
+  } else if (hasSpouseMention && hasChildMention) {
+    intent.adults = Math.max(Number(intent.adults) || 0, 2);
+  } else if (hasSpouseMention) {
+    intent.adults = 2;
+  } else if (hasChildMention && /我.*(带|和|跟|同)|带.*(孩子|宝宝|小孩|小朋友|儿子|女儿|娃)/.test(text) && !explicitTotal) {
+    intent.adults = 1;
+  }
+
+  if (explicitTotal !== null && hasChildMention && explicitAdults === null) {
+    const childCount = Math.max(1, intent.children.length || 1);
+    intent.adults = Math.max(1, explicitTotal - childCount);
+  }
+
+  if (hasSpouseMention || hasChildMention || explicitAdults !== null || explicitTotal !== null) {
+    intent.missing_fields = intent.missing_fields.filter(f => f !== 'adults' && f !== 'group_type');
+  }
+}
+
+function applyPositivePreferenceHints(intent, text) {
+  const rules = [
+    { re: /亲子|孩子|宝宝|小孩|小朋友|儿子|女儿|娃|游乐/, pref: '亲子' },
+    { re: /citywalk|散步|逛逛|压马路|街区|梧桐/, pref: 'citywalk' },
+    { re: /展览|看展|博物馆|美术馆|艺术展/, pref: '展览' },
+    { re: /购物|逛街|商场|购物中心|买东西/, pref: '购物' },
+    { re: /自然|公园|爬山|户外|露营|骑行/, pref: '户外' },
+    { re: /下午茶|甜品|咖啡|蛋糕|茶饮/, pref: '下午茶' },
+    { re: /电影|影院|观影|看电影/, pref: '电影' },
+    { re: /酒店|住宿|住酒店|民宿/, pref: '酒店' },
+    { re: /室内|雨天|下雨|太热|太冷/, pref: '室内' }
+  ];
+  for (const rule of rules) {
+    if (rule.re.test(text) && !intent.preferences.includes(rule.pref)) {
+      intent.preferences.push(rule.pref);
+    }
+  }
+}
+
+function applyNegativePreferenceHints(intent, text) {
+  const avoided = detectAvoidPreferences(text);
+  if (avoided.length === 0) return;
+
+  intent.avoid_preferences = [
+    ...(Array.isArray(intent.avoid_preferences) ? intent.avoid_preferences : []),
+    ...avoided
+  ];
+
+  const avoidTagSet = new Set(avoided.flatMap(pref => NEGATIVE_PREF_TAGS[pref] || [pref]));
+  intent.preferences = intent.preferences.filter(pref => {
+    if (avoided.includes(pref)) return false;
+    const prefTags = POSITIVE_PREF_TAGS[pref] || [pref];
+    return !prefTags.some(tag => avoidTagSet.has(tag) || [...avoidTagSet].some(a => a.includes(tag) || tag.includes(a)));
+  });
+}
+
+function applySpecialNeedHints(intent, text) {
+  const rules = [
+    { re: /减肥|健康|轻食|低卡|清淡|少油|低脂|控糖|少糖/, need: '健康饮食' },
+    { re: /素食|不吃肉|吃素/, need: '素食' },
+    { re: /轮椅|无障碍|行动不便/, need: '无障碍' }
+  ];
+  for (const rule of rules) {
+    if (rule.re.test(text) && !intent.special_needs.includes(rule.need)) {
+      intent.special_needs.push(rule.need);
+    }
+  }
+}
+
+const NEGATIVE_PREF_TAGS = {
+  '公园': ['公园','park','森林','草坪'],
+  '户外': ['户外','公园','骑行','森林','草坪'],
+  '展览': ['展览','博物馆','美术馆','艺术'],
+  '博物馆': ['博物馆','展览','室内','科普'],
+  '商场': ['商场','购物','mall'],
+  '购物': ['购物','商场','mall'],
+  '餐厅': ['餐厅','美食'],
+  '咖啡': ['咖啡','下午茶'],
+  '火锅': ['火锅'],
+  '烧烤': ['烧烤','烤串'],
+  '日料': ['日料','寿司'],
+  '西餐': ['西餐','汉堡','披萨'],
+  '甜品': ['甜品','蛋糕','下午茶'],
+  '电影': ['电影','影院','观影'],
+  'citywalk': ['citywalk','散步','街区']
+};
+
+const POSITIVE_PREF_TAGS = {
+  '亲子': ['亲子','孩子','游乐'],
+  'citywalk': ['citywalk','散步','逛逛'],
+  '展览': ['展览','博物馆','美术馆'],
+  '购物': ['购物','逛街','商场'],
+  '户外': ['户外','自然','公园','爬山'],
+  '下午茶': ['下午茶','甜品','咖啡','蛋糕'],
+  '电影': ['电影','影院','观影','看电影'],
+  '酒店': ['酒店','住宿','民宿']
+};
+
+function detectAvoidPreferences(text) {
+  const keywords = Object.keys(NEGATIVE_PREF_TAGS);
+  const result = [];
+  for (const keyword of keywords) {
+    const escaped = escapeRegExp(keyword);
+    const before = new RegExp(`(不想|不要|不去|别去|不考虑|避开|排除|别安排|不要安排|不安排|不喜欢|不爱|没兴趣)[^，。；,;！!？?]{0,10}${escaped}`);
+    const after = new RegExp(`${escaped}[^，。；,;！!？?]{0,8}(不想去|不想要|不要|不去|算了|别安排|不喜欢|不爱|没兴趣)`);
+    if (before.test(text) || after.test(text)) result.push(keyword);
+  }
+  return [...new Set(result)];
+}
+
+function extractChildAges(text) {
+  const ages = [];
+  const re = /(?:孩子|宝宝|小孩|小朋友|儿子|女儿|娃)\s*(\d{1,2})\s*岁|(\d{1,2})\s*岁(?:的)?(?:孩子|宝宝|小孩|小朋友|儿子|女儿|娃)/g;
+  for (const m of text.matchAll(re)) {
+    const age = parseInt(m[1] || m[2], 10);
+    if (!Number.isNaN(age) && age >= 0 && age < 18) ages.push(age);
+  }
+  return [...new Set(ages)];
+}
+
+function extractExplicitAdults(text) {
+  const m = text.match(/(\d+|一|二|两|三|四|五|六|七|八|九|十)\s*(个|位|名)?\s*(大人|成人|成年人)/);
+  return m ? parseChineseCount(m[1]) : null;
+}
+
+function extractExplicitTotalPeople(text) {
+  const family = text.match(/一家\s*(\d+|一|二|两|三|四|五|六|七|八|九|十)\s*口/);
+  if (family) return parseChineseCount(family[1]);
+  const total = text.match(/(\d+|一|二|两|三|四|五|六|七|八|九|十)\s*(个|位|名)?\s*(人|口)/);
+  return total ? parseChineseCount(total[1]) : null;
+}
+
+function parseChineseCount(raw) {
+  if (/^\d+$/.test(raw)) return parseInt(raw, 10);
+  const map = { 一: 1, 二: 2, 两: 2, 三: 3, 四: 4, 五: 5, 六: 6, 七: 7, 八: 8, 九: 9, 十: 10 };
+  return map[raw] ?? null;
+}
+
+function dedupeIntentArrays(intent) {
+  intent.preferences = [...new Set(intent.preferences.filter(Boolean))];
+  intent.special_needs = [...new Set(intent.special_needs.filter(Boolean))];
+  intent.avoid_preferences = [...new Set((intent.avoid_preferences || []).filter(Boolean))];
+}
+
+function escapeRegExp(str) {
+  return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
 // ── GLM API 调用 ──────────────────────────────────────────────
@@ -299,6 +485,7 @@ function parseIntentJSON(raw) {
   if (typeof obj.adults !== 'number') obj.adults = parseInt(obj.adults) || 2;
   if (!Array.isArray(obj.children))   obj.children = [];
   if (!Array.isArray(obj.preferences)) obj.preferences = [];
+  if (!Array.isArray(obj.avoid_preferences)) obj.avoid_preferences = [];
   if (!Array.isArray(obj.special_needs)) obj.special_needs = [];
   if (!Array.isArray(obj.missing_fields)) obj.missing_fields = [];
 
@@ -335,6 +522,7 @@ function applyDefaults(intent) {
     start_time:        intent.start_time        ?? '14:00',
     duration_hours:    intent.duration_hours    ?? 5,
     preferences:       intent.preferences       ?? [],
+    avoid_preferences: intent.avoid_preferences ?? [],
     special_needs:     intent.special_needs     ?? [],
     budget_per_person: intent.budget_per_person ?? null,
     missing_fields:    []   // 已处理，清空
@@ -391,8 +579,9 @@ async function generateClarifyQuestion(missingFields, apiKey) {
 // ── 导出（浏览器 + Node 双兼容） ──────────────────────────────
 
 if (typeof module !== 'undefined' && module.exports) {
-  module.exports = { extractIntent, ruleBasedFallback, parseIntentJSON, validateIntent, applyDefaults };
+  module.exports = { extractIntent, ruleBasedFallback, normalizeIntentFromText, parseIntentJSON, validateIntent, applyDefaults };
 } else {
   window.extractIntent = extractIntent;
   window.ruleBasedFallback = ruleBasedFallback;
+  window.normalizeIntentFromText = normalizeIntentFromText;
 }

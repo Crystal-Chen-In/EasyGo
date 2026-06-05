@@ -514,6 +514,7 @@ async function searchActivities(intent, options = {}) {
     let candidates = ACTIVITIES_DB.filter(a => {
       if (a.rating < minRating) return false;
       if (a.distance_km > intent.radius_km * 1.2) return false;
+      if (isAvoidedActivity(a, intent)) return false;
       if (intent.children && intent.children.length > 0) {
         const minChildAge = Math.min(...intent.children.map(c => c.age));
         if (a.min_age > minChildAge) return false;
@@ -539,6 +540,34 @@ async function searchActivities(intent, options = {}) {
       meta: { source: 'fallback' }
     };
   }
+}
+
+const AVOID_ACTIVITY_TAG_MAP = {
+  '公园': ['公园','森林','草坪'],
+  '户外': ['户外','公园','森林','草坪','骑行'],
+  '展览': ['展览','博物馆','美术馆','艺术'],
+  '博物馆': ['博物馆','展览','科普'],
+  '商场': ['商场','购物','mall'],
+  '购物': ['购物','商场','mall'],
+  '咖啡': ['咖啡','下午茶'],
+  '电影': ['电影','影院','观影'],
+  'citywalk': ['citywalk','散步','街区']
+};
+
+function isAvoidedActivity(activity, intent) {
+  const avoidPrefs = intent && Array.isArray(intent.avoid_preferences) ? intent.avoid_preferences : [];
+  if (avoidPrefs.length === 0) return false;
+
+  return avoidPrefs.some(pref => {
+    if (pref === '公园' && activity.type === 'park') return true;
+    if (pref === '户外' && ['park', 'outdoor'].includes(activity.type)) return true;
+    const tags = AVOID_ACTIVITY_TAG_MAP[pref] || [pref];
+    return tags.some(tag =>
+      (activity.name && activity.name.includes(tag)) ||
+      (activity.type && activity.type.includes(tag)) ||
+      activity.tags.some(t => t.includes(tag) || tag.includes(t))
+    );
+  });
 }
 
 function computeScore(activity, intent) {
@@ -639,7 +668,7 @@ function getFallbackActivities(intent) {
 }
 
 if (typeof module !== 'undefined' && module.exports) {
-  module.exports = { searchActivities, computeScore, formatActivity, matchActivitiesByKeywords, ACTIVITIES_DB, ACTIVITY_KEYWORD_TAG_MAP };
+  module.exports = { searchActivities, computeScore, formatActivity, matchActivitiesByKeywords, isAvoidedActivity, ACTIVITIES_DB, ACTIVITY_KEYWORD_TAG_MAP };
 } else {
   window.ACTIVITIES_DB = ACTIVITIES_DB;
   window.ACTIVITY_KEYWORD_TAG_MAP = ACTIVITY_KEYWORD_TAG_MAP;

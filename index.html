@@ -1175,7 +1175,8 @@ async function sendMessage() {
 
   const childNote  = intent.children.length > 0 ? `，带 ${intent.children[0].age} 岁孩子` : '';
   const needNote   = intent.special_needs.includes('健康饮食') ? '，餐厅已过滤健康饮食选项' : '';
-  const intro = `${intentSummary}。出发时间 ${intent.start_time}，活动半径 ${intent.radius_km}km，共 ${intent.adults} 人${childNote}${needNote}，为您规划约 ${intent.duration_hours} 小时行程：`;
+  const totalPeople = (intent.adults || 0) + (intent.children ? intent.children.length : 0);
+  const intro = `${intentSummary}。出发时间 ${intent.start_time}，活动半径 ${intent.radius_km}km，共 ${totalPeople} 人${childNote}${needNote}，为您规划约 ${intent.duration_hours} 小时行程：`;
 
   addMessage('ai', intro);
 
@@ -2117,7 +2118,8 @@ function generateShareTextFromPlan(planItems, intent) {
     const name = it.name || it.title || '';
     return (t ? (t + ' ') : '') + name;
   });
-  const head = intent ? `为您规划的行程（${intent.adults} 人）：` : '为您规划的行程：';
+  const totalPeople = intent ? ((intent.adults || 0) + (intent.children ? intent.children.length : 0)) : 0;
+  const head = intent ? `为您规划的行程（${totalPeople} 人）：` : '为您规划的行程：';
   return head + parts.join(' → ');
 }
 
@@ -2839,7 +2841,8 @@ function saveHistoryPlan(plan) {
   const now = new Date();
   const title = plan.items[0] ? plan.items[0].name : (plan.plan && plan.plan.summary) || '行程';
   const summary = (plan.items.slice(0,3).map(it=>it.name).join(' · '));
-  const entry = { id: Date.now(), date: now.toISOString(), title: title, summary: summary, people: (plan.intent && plan.intent.adults) || 1, plan: plan };
+  const people = plan.intent ? ((plan.intent.adults || 0) + (plan.intent.children ? plan.intent.children.length : 0)) : 1;
+  const entry = { id: Date.now(), date: now.toISOString(), title: title, summary: summary, people: people, plan: plan };
   items.unshift(entry);
   if (items.length > 50) items.pop();
   saveHistory(items);

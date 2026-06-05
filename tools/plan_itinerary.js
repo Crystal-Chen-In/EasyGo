@@ -43,7 +43,8 @@ function buildContext(intent, activities, restaurants) {
     group_type: intent.group_type, adults: intent.adults,
     children: intent.children, start_time: intent.start_time,
     duration_hours: intent.duration_hours,
-    special_needs: intent.special_needs, preferences: intent.preferences
+    special_needs: intent.special_needs, preferences: intent.preferences,
+    avoid_preferences: intent.avoid_preferences || []
   };
   const actSlim = activities.slice(0, 6).map(function(a) {
     return { id: a.id, name: a.name, type: a.type,

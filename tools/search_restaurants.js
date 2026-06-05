@@ -720,6 +720,7 @@ async function searchRestaurants(intent, options = {}) {
     let candidates = RESTAURANTS_DB.filter(r => {
       if (!r.open_now) return false;
       if (r.distance_km > intent.radius_km * 1.2) return false;
+      if (isAvoidedRestaurant(r, intent)) return false;
       // 有孩子：必须 kid_menu 或评分够高的家庭餐厅
       if (intent.children && intent.children.length > 0) {
         if (!r.kid_menu && !r.suitable_for.includes('family')) return false;
@@ -771,6 +772,32 @@ async function searchRestaurants(intent, options = {}) {
 }
 
 // ── 餐厅评分计算 ──────────────────────────────────────────────
+const AVOID_RESTAURANT_TAG_MAP = {
+  '餐厅': ['餐厅','美食'],
+  '咖啡': ['咖啡','下午茶'],
+  '火锅': ['火锅'],
+  '烧烤': ['烧烤','烤串'],
+  '日料': ['日料','寿司'],
+  '西餐': ['西餐','汉堡','披萨'],
+  '甜品': ['甜品','蛋糕','下午茶'],
+  '素食': ['素食']
+};
+
+function isAvoidedRestaurant(restaurant, intent) {
+  const avoidPrefs = intent && Array.isArray(intent.avoid_preferences) ? intent.avoid_preferences : [];
+  if (avoidPrefs.length === 0) return false;
+
+  return avoidPrefs.some(pref => {
+    const tags = AVOID_RESTAURANT_TAG_MAP[pref];
+    if (!tags) return false;
+    return tags.some(tag =>
+      (restaurant.name && restaurant.name.includes(tag)) ||
+      (restaurant.cuisine && restaurant.cuisine.includes(tag)) ||
+      restaurant.tags.some(t => t.includes(tag) || tag.includes(t))
+    );
+  });
+}
+
 function computeRstScore(r, intent, needHealthy) {
   let score = 0;
 
@@ -864,7 +891,7 @@ function getFallbackRestaurants(intent) {
 }
 
 if (typeof module !== 'undefined' && module.exports) {
-  module.exports = { searchRestaurants, simulateWaitTime, computeRstScore, formatRestaurant, RESTAURANTS_DB };
+  module.exports = { searchRestaurants, simulateWaitTime, computeRstScore, formatRestaurant, isAvoidedRestaurant, RESTAURANTS_DB };
 } else {
   window.searchRestaurants = searchRestaurants;
 }
