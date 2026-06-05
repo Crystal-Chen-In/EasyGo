@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>美团·周末活动规划 Agent</title>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <style>
   :root {
     --primary: #1E40AF;
@@ -29,9 +30,10 @@
     --shadow: 0 2px 12px rgba(30,64,175,0.08);
     --font-size-base: 16px;
     --font-scale: 1;
+    font-size: calc(16px * var(--font-scale));
   }
-  [data-size="large"] { --font-scale: 1.2; }
-  [data-size="xlarge"] { --font-scale: 1.45; }
+  html[data-size="large"]  { --font-scale: 1.2; }
+  html[data-size="xlarge"] { --font-scale: 1.45; }
 
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -59,6 +61,9 @@
     font-weight: 700; font-size: calc(1.1rem * var(--font-scale));
     color: var(--primary);
   }
+  #slogan-wrap { position: relative; height: 24px; overflow: visible; min-width: 140px; }
+  .slogan-item { position: absolute; left: 0; top: 0; opacity: 0; transform: translateY(6px); transition: opacity 0.6s ease, transform 0.6s ease; }
+  .slogan-item.active { opacity: 1; transform: translateY(0); }
   .nav-logo .logo-dot {
     width: 32px; height: 32px; border-radius: 10px;
     background: var(--primary);
@@ -76,6 +81,8 @@
   }
   .nav-btn:hover { background: var(--primary-bg); border-color: var(--primary); color: var(--primary); }
   .nav-btn.active { background: var(--primary); border-color: var(--primary); color: #fff; }
+  .nav-btn.speaking { animation: speak-pulse 1.2s infinite; box-shadow: 0 6px 18px rgba(30,64,175,0.12); }
+  @keyframes speak-pulse { 0%{ transform: translateY(0);}50%{ transform: translateY(-3px);}100%{ transform: translateY(0);} }
   .font-size-group { display: flex; border: 1.5px solid var(--border); border-radius: var(--radius-sm); overflow: hidden; }
   .font-size-group button {
     border: none; background: transparent; padding: 5px 10px;
@@ -100,19 +107,25 @@
 
   /* LEFT PANEL */
   .main-panel {
-    padding: 28px 28px 0;
+    padding: 0;
     display: flex; flex-direction: column;
-    min-height: calc(100vh - 60px);
+    height: calc(100vh - 60px);
+    overflow: hidden;
   }
 
   /* HERO INPUT AREA */
   .hero-section {
     background: linear-gradient(135deg, #EFF6FF 0%, #FFFBEB 100%);
-    border: 1.5px solid #BFDBFE;
-    border-radius: 16px;
-    padding: 28px;
-    margin-bottom: 24px;
+    border: none;
+    border-top: 1.5px solid var(--border);
+    border-radius: 0;
+    padding: 16px 28px 24px;
+    margin-bottom: 0;
     position: relative; overflow: hidden;
+    display: flex; flex-direction: column;
+    flex: 0 0 34%; /* 占可用高度的 34%，稍微提高输入区以避免下方被遮挡 */
+    overflow: visible; /* 允许关键字栏等溢出可见，避免被裁切 */
+    margin-bottom:0.0002rem; /* 向下移动 2rem，使下方栏目明显下调 */
   }
   .hero-section::before {
     content: ''; position: absolute; top: -30px; right: -30px;
@@ -138,11 +151,11 @@
     position: relative;
   }
   .input-box {
-    flex: 1; position: relative;
+    flex: 1; position: relative; display:flex; flex-direction:column;
   }
   textarea#main-input {
-    width: 100%; min-height: 72px; max-height: 160px;
-    padding: 14px 16px; padding-right: 44px;
+    width: 100%; height: auto; min-height: 40px; max-height: 84px;
+    padding: 10px 12px; padding-right: 44px;
     border: 2px solid var(--border);
     border-radius: var(--radius); resize: none;
     font-family: inherit; font-size: calc(1rem * var(--font-scale));
@@ -166,13 +179,17 @@
     transition: all 0.2s; font-size: 17px;
   }
   .mic-btn:hover { background: var(--primary); color: #fff; }
+  .mic-btn.hovering { transform: scale(1.08); box-shadow: 0 8px 18px rgba(30,64,175,0.12); }
   .mic-btn.recording {
     background: var(--danger); color: #fff;
-    animation: mic-pulse 1s infinite;
+    animation: mic-pulse 0.9s infinite;
+    transform: scale(1.12);
+    box-shadow: 0 12px 30px rgba(220,38,38,0.14);
   }
   @keyframes mic-pulse {
-    0%,100% { box-shadow: 0 0 0 0 rgba(220,38,38,0.4); }
-    50% { box-shadow: 0 0 0 8px rgba(220,38,38,0); }
+    0% { box-shadow: 0 0 0 0 rgba(220,38,38,0.4); transform: scale(1); }
+    40% { box-shadow: 0 0 0 10px rgba(220,38,38,0.06); transform: scale(1.06); }
+    100% { box-shadow: 0 0 0 0 rgba(220,38,38,0); transform: scale(1); }
   }
 
   .send-btn {
@@ -199,6 +216,36 @@
   }
   .quick-tag:hover { border-color: var(--primary); color: var(--primary); background: var(--primary-bg); }
 
+  /* KEYWORD FILTER BAR */
+  .keyword-filter-bar {
+    margin-top: 10px;
+    display: flex; gap: 6px; flex-wrap: nowrap; overflow-x: auto;
+    padding: 10px 12px;
+    background: var(--bg);
+    border: 1.5px solid var(--border);
+    border-radius: var(--radius-sm);
+  }
+  .keyword-filter-label {
+    font-size: calc(0.75rem * var(--font-scale));
+    color: var(--text-3); font-weight: 600;
+    align-self: center; white-space: nowrap;
+    margin-right: 2px; letter-spacing: 0.04em;
+  }
+  .kw-btn {
+    padding: 4px 11px; border-radius: 14px;
+    border: 1.5px solid var(--border);
+    background: var(--surface);
+    font-size: calc(0.75rem * var(--font-scale));
+    color: var(--text-2); cursor: pointer;
+    transition: all 0.15s; font-family: inherit;
+    display: inline-flex; align-items: center; gap: 4px; flex: 0 0 auto; white-space: nowrap;
+  }
+  .kw-btn:hover, .kw-btn.active {
+    background: var(--primary); color: #fff;
+    border-color: var(--primary);
+    box-shadow: 0 2px 6px rgba(30,64,175,0.18);
+  }
+
   /* SOUND WAVE INDICATOR */
   .sound-wave {
     display: none; align-items: center; gap: 3px;
@@ -222,8 +269,9 @@
 
   /* CHAT AREA */
   .chat-area {
-    flex: 1; padding-bottom: 32px;
+    flex: 1 1 70%; padding: 24px 28px 20px;
     display: flex; flex-direction: column; gap: 18px;
+    overflow-y: auto;
   }
 
   /* MESSAGES */
@@ -383,7 +431,7 @@
     background: var(--surface);
     display: flex; flex-direction: column; gap: 20px;
     overflow-y: auto; max-height: calc(100vh - 60px);
-    position: sticky; top: 60px;
+    position: relative; top: 0;
   }
   .sidebar-section h3 {
     font-size: calc(0.82rem * var(--font-scale));
@@ -412,6 +460,22 @@
   .tl-name { font-size: calc(0.88rem * var(--font-scale)); color: var(--text-1); font-weight: 500; margin-top: 2px; }
   .tl-sub { font-size: calc(0.78rem * var(--font-scale)); color: var(--text-3); margin-top: 1px; }
 
+/* 侧边栏微动画 */
+  .sidebar-section { animation: sidebar-fadein 0.4s ease both; }
+  .sidebar-section:nth-child(1){ animation-delay:0.05s; }
+  .sidebar-section:nth-child(2){ animation-delay:0.12s; }
+  .sidebar-section:nth-child(3){ animation-delay:0.2s; }
+  .sidebar-section:nth-child(4){ animation-delay:0.28s; }
+  @keyframes sidebar-fadein { from{opacity:0;transform:translateY(10px);}to{opacity:1;transform:translateY(0);} }
+
+  .tl-item { transition: background 0.2s, box-shadow 0.2s; border-radius: 8px; padding: 4px 6px; }
+  .tl-item:hover { background: var(--primary-bg); box-shadow: 0 2px 8px rgba(30,64,175,0.08); }
+
+  .info-card { transition: transform 0.18s, box-shadow 0.18s; }
+  .info-card:hover { transform: translateY(-2px); box-shadow: 0 4px 16px rgba(30,64,175,0.10); }
+
+  /* 快捷功能按钮图像化放大 */
+  .sidebar .nav-btn { font-size: calc(0.95rem * var(--font-scale)); padding: 10px 14px; }
   /* MAP PLACEHOLDER */
   .map-placeholder {
     height: 180px; background: #EFF6FF;
@@ -441,8 +505,8 @@
     display: flex; align-items: center; gap: 12px;
   }
   .info-card-icon { font-size: 24px; }
-  .info-card-label { font-size: calc(0.78rem * var(--font-scale)); color: var(--text-3); }
-  .info-card-value { font-size: calc(0.92rem * var(--font-scale)); font-weight: 600; color: var(--text-1); }
+  .info-card-label { font-size: calc(0.86rem * var(--font-scale)); color: var(--text-3); font-weight:600 }
+  .info-card-value { font-size: calc(1.02rem * var(--font-scale)); font-weight:700; color: var(--text-1); }
 
   /* SHARE MODAL */
   .modal-overlay {
@@ -488,11 +552,55 @@
     display: flex; align-items: center; justify-content: center; gap: 10px;
     display: none;
   }
-  body.senior-mode .a11y-banner { display: flex; }
-  body.senior-mode { --font-size-base: 18px; }
-  body.senior-mode .hero-section { padding: 32px; }
-  body.senior-mode .send-btn { height: 56px; }
-  body.senior-mode .action-btn { padding: 16px 20px; }
+  body.friendly .a11y-banner { display: flex; }
+  body.friendly { --font-size-base: 22px; --font-scale: 1.35; }
+  body:not(.friendly) { --font-size-base: 16px; --font-scale: 1; }
+  body:not(.friendly) { --font-size-base: 16px; }
+  body.friendly .hero-section { padding: 32px; }
+  body.friendly .send-btn { height: 56px; }
+  body.friendly .action-btn { padding: 16px 20px; }
+  /* ── 毛玻璃导航栏 ── */
+  .topbar { backdrop-filter: blur(12px) saturate(1.6); background: rgba(255,255,255,0.82) !important; }
+
+  /* ── 消息气泡入场动画 ── */
+  .msg { animation: msg-in 0.28s cubic-bezier(.22,1,.36,1) both; }
+  @keyframes msg-in { from{opacity:0;transform:translateY(12px);} to{opacity:1;transform:translateY(0);} }
+
+  /* ── 卡片悬停浮起 ── */
+  .plan-card { transition: transform 0.18s, box-shadow 0.18s; }
+  .plan-card:hover { transform: translateY(-3px); box-shadow: 0 8px 24px rgba(30,64,175,0.13); }
+
+  /* ── 按钮点击涟漪 ── */
+  .nav-btn { position:relative; overflow:hidden; }
+  .nav-btn:active::after { content:''; position:absolute; inset:0; background:rgba(255,255,255,0.35); border-radius:inherit; animation:ripple 0.4s ease; }
+  @keyframes ripple { from{opacity:1;transform:scale(0.6);} to{opacity:0;transform:scale(2);} }
+
+  /* ── 友好模式：高对比 + 更大点击区 ── */
+  body.friendly .nav-btn { min-height: 52px; font-size: 1.1rem !important; border-width: 2px; }
+  body.friendly .msg-bubble { border-width: 2px; font-size: 1.15rem; line-height: 1.8; }
+  body.friendly .msg-bubble { cursor: pointer; }
+  body.friendly .msg-bubble:hover { outline: 2px dashed var(--primary); outline-offset: 3px; }
+  body.friendly .plan-card { border: 2px solid var(--primary-light); }
+  body.friendly .send-btn { font-size: 1.2rem !important; }
+/* ── 友好模式跳动动画 ── */
+  @keyframes bounce-card { 0%,100%{transform:scale(1);} 30%{transform:scale(1.04);} 60%{transform:scale(0.98);} }
+  @keyframes bounce-emoji { 0%,100%{transform:translateY(0) scale(1);} 25%{transform:translateY(-10px) scale(1.3);} 55%{transform:translateY(-4px) scale(1.15);} 80%{transform:translateY(-2px) scale(1.05);} }
+  .friendly-bounce-card { animation: bounce-card 0.35s cubic-bezier(.36,1.56,.64,1) both; }
+  .friendly-bounce-emoji { display:inline-block; animation: bounce-emoji 0.5s cubic-bezier(.36,1.56,.64,1) both; }
+  body.friendly .msg-bubble { cursor: pointer; }
+  body.friendly .msg-bubble:hover { outline: 2px dashed rgba(30,64,175,0.3); outline-offset:3px; border-radius:inherit; }
+  body.friendly .plan-card { cursor: pointer; }
+  body.friendly .nav-btn .nav-btn-emoji { display:inline-block; }
+
+  /* ── 侧边栏项目入场 ── */
+  .tl-item { animation: sidebar-fadein 0.35s ease both; }
+  .tl-item:nth-child(1){animation-delay:0.04s} .tl-item:nth-child(2){animation-delay:0.09s}
+  .tl-item:nth-child(3){animation-delay:0.14s} .tl-item:nth-child(4){animation-delay:0.19s}
+  @keyframes sidebar-fadein { from{opacity:0;transform:translateX(8px);}to{opacity:1;transform:translateX(0);} }
+
+  /* ── 信息卡片悬停 ── */
+  .info-card { transition: transform 0.18s, box-shadow 0.18s; }
+  .info-card:hover { transform: translateY(-2px); box-shadow: 0 6px 18px rgba(30,64,175,0.10); }
 
   /* SCROLL TO BOTTOM */
   .chat-area::-webkit-scrollbar { width: 4px; }
@@ -539,15 +647,23 @@
 
 <h2 class="sr-only">美团周末活动规划 Agent — 本地场景出行智能助手</h2>
 
-<div class="a11y-banner" role="banner" aria-live="polite">
-  🔆 老年人模式已开启 — 字体放大，操作更简单
-  <button onclick="toggleSeniorMode()" style="background:rgba(255,255,255,0.2);border:1px solid rgba(255,255,255,0.5);color:#fff;padding:3px 10px;border-radius:6px;cursor:pointer;font-family:inherit;font-size:inherit;">关闭</button>
+  <div class="a11y-banner" role="banner" aria-live="polite">
+  ❤️ 友好模式已开启 — 字体放大，操作更清晰
+  <button onclick="toggleFriendlyMode()" style="background:rgba(255,255,255,0.2);border:1px solid rgba(255,255,255,0.5);color:#fff;padding:3px 10px;border-radius:6px;cursor:pointer;font-family:inherit;font-size:inherit;">关闭</button>
 </div>
 
 <nav role="navigation" aria-label="主导航">
-  <div class="nav-logo">
-    <div class="logo-dot" aria-hidden="true">美</div>
-    周末出行规划
+  <div class="nav-logo" style="display:flex;align-items:center;gap:12px;">
+    <div style="display:flex;align-items:center;gap:8px;">
+      <div class="logo-dot" aria-hidden="true">E</div>
+      <div style="font-weight:700;font-size:1.05rem;">Easy go</div>
+    </div>
+    <div id="slogan-wrap" aria-hidden="true" style="opacity:0.95;font-size:0.9rem;color:var(--text-3);margin-left:16px;">
+      <span class="slogan-item active">No more waiting</span>
+      <span class="slogan-item">Just Go ✈️</span>
+      <span class="slogan-item">出发吧！</span>
+      <span class="slogan-item">Life is short 🌈</span>
+    </div>
   </div>
   <div class="nav-controls">
     <div class="font-size-group" role="group" aria-label="字体大小">
@@ -572,11 +688,12 @@
         </div>
       </div>
     </div>
-    <button class="nav-btn" id="senior-btn" onclick="toggleSeniorMode()" aria-label="切换老年人模式">
-      <span aria-hidden="true">👴</span> 老年人模式
+    <button class="nav-btn" id="history-btn" onclick="toggleHistorySidebar()" data-desc="历史记录：查看之前保存的行程与对话，点击某条可只读恢复历史会话。">📚 历史记录</button>
+    <button class="nav-btn" id="friendly-btn" onclick="toggleFriendlyMode()" aria-label="切换友好模式" data-desc="友好模式：开启后字体放大、按钮更明显，并启用语音辅助。">
+      <span aria-hidden="true">❤️</span> 友好模式
     </button>
-    <button class="nav-btn" onclick="speakText('您好，欢迎使用美团周末出行规划助手。请告诉我您想怎么玩。')" aria-label="语音朗读欢迎词">
-      <span aria-hidden="true">🔊</span> 朗读
+    <button class="nav-btn" id="audio-toggle-btn" onclick="toggleSpeakPause()" aria-label="暂停或继续语音" data-desc="语音控制：用于暂停或继续当前的语音提示，仅在友好模式时有效。">
+      <span aria-hidden="true">⏸️</span> 暂停语音
     </button>
   </div>
 </nav>
@@ -584,45 +701,6 @@
 <div class="app-layout">
   <!-- MAIN PANEL -->
   <main class="main-panel" role="main">
-    <!-- HERO INPUT -->
-    <section class="hero-section" aria-labelledby="hero-label">
-      <div class="hero-title" id="hero-label">
-        <div class="pulse-dot" aria-hidden="true"></div>
-        告诉我您今天想怎么玩 ✨
-      </div>
-      <div class="input-wrapper">
-        <div class="input-box">
-          <textarea
-            id="main-input"
-            aria-label="活动需求输入框，可输入文字或点击麦克风使用语音"
-            placeholder="例如：想和老婆孩子（孩子5岁）下午出去玩，别太远，孩子喜欢玩水，大人想吃个好的…"
-            rows="3"
-            onkeydown="handleKey(event)"
-          ></textarea>
-          <button class="mic-btn" id="mic-btn" onclick="toggleMic()" aria-label="语音输入" aria-pressed="false" title="点击开始语音输入">
-            🎤
-          </button>
-        </div>
-        <button class="send-btn" id="send-btn" onclick="sendMessage()" aria-label="发送规划请求">
-          <span aria-hidden="true">✦</span> 规划
-        </button>
-      </div>
-      <div class="sound-wave" id="sound-wave" role="status" aria-live="polite" aria-label="正在录音">
-        <span>正在录音…</span>
-        <div class="wave-bar" style="height:6px" aria-hidden="true"></div>
-        <div class="wave-bar" style="height:6px" aria-hidden="true"></div>
-        <div class="wave-bar" style="height:6px" aria-hidden="true"></div>
-        <div class="wave-bar" style="height:6px" aria-hidden="true"></div>
-        <div class="wave-bar" style="height:6px" aria-hidden="true"></div>
-      </div>
-      <div class="quick-tags" role="group" aria-label="快速选择场景">
-        <button class="quick-tag" onclick="fillQuick('家庭亲子，孩子5岁，下午出游，别太远')" aria-label="亲子家庭场景">👨‍👩‍👧 亲子家庭</button>
-        <button class="quick-tag" onclick="fillQuick('4个朋友一起，2男2女，想逛逛吃点好的')" aria-label="朋友聚会场景">👫 朋友聚会</button>
-        <button class="quick-tag" onclick="fillQuick('两个人约会，想看个展或者逛citywalk')" aria-label="情侣约会场景">💑 情侣约会</button>
-        <button class="quick-tag" onclick="fillQuick('老人和孩子一起，爬山或公园，走动少一点')" aria-label="长辈陪伴场景">🧓 陪伴长辈</button>
-      </div>
-    </section>
-
     <!-- CHAT AREA -->
     <div class="chat-area" id="chat-area" role="log" aria-live="polite" aria-label="对话区域">
       <!-- Welcome Message -->
@@ -637,13 +715,73 @@
         </div>
       </div>
     </div>
+
+    <!-- HERO INPUT -->
+    <section class="hero-section" aria-labelledby="hero-label">
+      <div class="hero-title" id="hero-label">
+        <div class="pulse-dot" aria-hidden="true"></div>
+        告诉我您今天想怎么玩 ✨
+      </div>
+      <div class="input-wrapper" data-desc="输入区域：在此输入您的需求，或使用右侧的语音输入按钮进行语音输入，点击规划开始生成方案。">
+        <div class="input-box">
+          <textarea
+            id="main-input"
+            aria-label="活动需求输入框，可输入文字或点击麦克风使用语音"
+            placeholder="例如：想和老婆孩子（孩子5岁）下午出去玩，别太远，孩子喜欢玩水，大人想吃个好的…"
+            rows="3"
+            onkeydown="handleKey(event)"
+          ></textarea>
+          <button class="mic-btn" id="mic-btn" onclick="toggleMic()" aria-label="语音输入" aria-pressed="false" title="点击开始语音输入" data-desc="语音输入：点击开始语音录入您的需求，录音时会有波动指示。">
+            🎤
+          </button>
+        </div>
+        <button class="send-btn" id="send-btn" onclick="sendMessage()" aria-label="发送规划请求" data-desc="规划：提交您的需求，助手将生成行程建议。">
+          <span aria-hidden="true">✦</span> 规划
+        </button>
+      </div>
+      <div class="sound-wave" id="sound-wave" role="status" aria-live="polite" aria-label="正在录音">
+        <span>正在录音…</span>
+        <div class="wave-bar" style="height:6px" aria-hidden="true"></div>
+        <div class="wave-bar" style="height:6px" aria-hidden="true"></div>
+        <div class="wave-bar" style="height:6px" aria-hidden="true"></div>
+        <div class="wave-bar" style="height:6px" aria-hidden="true"></div>
+        <div class="wave-bar" style="height:6px" aria-hidden="true"></div>
+      </div>
+
+
+      <!-- KEYWORD FILTER BAR -->
+      <div class="keyword-filter-bar" role="group" aria-label="关键字筛选，点击可添加到输入框" data-desc="关键字栏：快速添加标签到输入，帮助助手更准确地推荐活动。">
+        <span class="keyword-filter-label">🏷 关键字：</span>
+        <button class="kw-btn" onclick="appendKeyword(this,'剧院')" data-desc="添加关键字：剧院。">🎭 剧院</button>
+        <button class="kw-btn" onclick="appendKeyword(this,'餐厅')" data-desc="添加关键字：餐厅。">🍜 餐厅</button>
+        <button class="kw-btn" onclick="appendKeyword(this,'游乐场')" data-desc="添加关键字：游乐场。">🎡 游乐场</button>
+        <button class="kw-btn" onclick="appendKeyword(this,'商场')" data-desc="添加关键字：商场。">🛍️ 商场</button>
+        <button class="kw-btn" onclick="appendKeyword(this,'亲子')" data-desc="添加关键字：亲子。">👶 亲子</button>
+        <button class="kw-btn" onclick="appendKeyword(this,'展览')" data-desc="添加关键字：展览。">🖼️ 展览</button>
+        <button class="kw-btn" onclick="appendKeyword(this,'citywalk')" data-desc="添加关键字：citywalk。">🚶 Citywalk</button>
+        <button class="kw-btn" onclick="appendKeyword(this,'公园')" data-desc="添加关键字：公园。">🌿 公园</button>
+        <button class="kw-btn" onclick="appendKeyword(this,'咖啡')" data-desc="添加关键字：咖啡。">☕ 咖啡</button>
+        <button class="kw-btn" onclick="appendKeyword(this,'电影院')" data-desc="添加关键字：电影院。">🎬 电影院</button>
+        <button class="kw-btn" onclick="appendKeyword(this,'温泉')" data-desc="添加关键字：温泉。">♨️ 温泉</button>
+        <button class="kw-btn" onclick="appendKeyword(this,'戏院')" data-desc="添加关键字：戏院。">🎭 戏院</button>
+        <button class="kw-btn" onclick="appendKeyword(this,'酒楼')" data-desc="添加关键字：酒楼。">🍽️ 酒楼</button>
+        <button class="kw-btn" onclick="appendKeyword(this,'游乐园')" data-desc="添加关键字：游乐园。">🎡 游乐园</button>
+        <button class="kw-btn" onclick="appendKeyword(this,'展览')" data-desc="添加关键字：展览。">🏛️ 展览</button>
+        <button class="kw-btn" onclick="appendKeyword(this,'购物中心')" data-desc="添加关键字：购物中心。">🛍️ 购物中心</button>
+        <button class="kw-btn" onclick="appendKeyword(this,'KTV')" data-desc="添加关键字：KTV。">🎤 KTV</button>
+        <button class="kw-btn" onclick="appendKeyword(this,'火锅')" data-desc="添加关键字：火锅。">🥘 火锅</button>
+        <button class="kw-btn" onclick="appendKeyword(this,'游泳')" data-desc="添加关键字：游泳。">🏊 游泳</button>
+        <button class="kw-btn" onclick="appendKeyword(this,'保龄球')" data-desc="添加关键字：保龄球。">🎳 保龄球</button>
+        <button class="kw-btn" onclick="appendKeyword(this,'亲子乐园')" data-desc="添加关键字：亲子乐园。">🎠 亲子乐园</button>
+      </div>
+    </section>
   </main>
 
   <!-- SIDEBAR -->
   <aside class="sidebar" role="complementary" aria-label="行程信息面板">
     <div class="sidebar-section">
       <h3>今日行程</h3>
-      <div class="timeline" id="timeline" aria-label="行程时间轴">
+          <div class="timeline" id="timeline" aria-label="行程时间轴" data-desc="今日行程时间轴：显示已规划的每一站时间与地点。将鼠标移到此处会朗读当前的行程详情。">
         <div class="tl-item">
           <div class="tl-dot upcoming" aria-label="待定"></div>
           <div class="tl-time">等待规划中…</div>
@@ -654,45 +792,23 @@
 
     <div class="sidebar-section">
       <h3>地图预览</h3>
-      <div class="map-preview" id="mapPreview" style="height:180px;position:relative;border-radius:12px;overflow:hidden;border:1.5px solid var(--border);">
+      <div class="map-preview" id="mapPreview" style="height:180px;position:relative;border-radius:12px;overflow:hidden;border:1.5px solid var(--border);" data-desc="地图预览：展示路线缩略，点击放大地图可查看完整路线。">
         <div id="amap-preview" style="width:100%;height:100%;background:#EFF6FF;display:flex;align-items:center;justify-content:center;color:var(--primary);font-size:18px">加载中…</div>
         <div id="previewRouteSummary" style="position:absolute;left:10px;top:10px;z-index:12;background:rgba(255,255,255,0.92);padding:8px;border-radius:8px;border:1px solid var(--border);display:none;max-width:60%;font-size:13px;color:var(--text-2)"></div>
-        <div style="position:absolute;right:10px;bottom:10px"><button class="nav-btn" onclick="openFullMap()">放大地图</button></div>
+        <div style="position:absolute;right:10px;bottom:10px"><button class="nav-btn" onclick="openFullMap()" data-desc="放大地图：打开全屏地图以查看路线细节。">放大地图</button></div>
       </div>
 
-      <!-- Full map modal -->
-      <div id="mapModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:500;align-items:center;justify-content:center;padding:24px;">
-        <div style="position:relative;width:100%;max-width:1100px;height:80%;background:var(--surface);border-radius:12px;overflow:hidden;box-shadow:0 20px 60px rgba(0,0,0,0.4);">
-          <div style="position:absolute;right:12px;top:12px;z-index:20;"><button class="nav-btn" onclick="closeFullMap()">关闭</button></div>
-          <div id="amap-full" style="width:100%;height:100%"></div>
-          <div id="mapControls" style="position:absolute;left:12px;top:12px;z-index:20;display:flex;gap:8px;align-items:center;padding:6px;background:rgba(255,255,255,0.9);border-radius:8px;border:1px solid var(--border)">
-            <select id="routeModeSelect"><option value="smart">智能推薦</option><option value="driving">驾车</option><option value="transit">公交</option><option value="walking">步行</option></select>
-            <select id="routePolicySelect"><option value="LEAST_DISTANCE">路程最短</option><option value="LEAST_TIME">时间最短</option><option value="MOST_ECONOMICAL">最经济</option></select>
-            <button class="nav-btn" onclick="planRouteOnMap()">规划路线</button>
-          </div>
-          <div id="routeDetailsPanel" style="position:absolute;left:12px;bottom:12px;z-index:20;width:340px;max-height:68%;overflow:auto;padding:10px;background:rgba(255,255,255,0.96);border-radius:8px;border:1px solid var(--border);display:none;font-size:13px;color:var(--text-2)"></div>
-        </div>
-      </div>
+
     </div>
 
     <div class="sidebar-section">
       <h3>出行参考</h3>
       <div style="display:flex;flex-direction:column;gap:8px;">
-        <div class="info-card" role="status" id="travel-suggestion-card">
-          <div class="info-card-icon" aria-hidden="true">🚇</div>
+        <div class="info-card" role="status" id="weather-card">
+          <div class="info-card-icon" id="weather-icon" aria-hidden="true">☀️</div>
           <div style="flex:1">
-            <div class="info-card-label">出行建议</div>
-            <div class="info-card-value" id="travel-suggestion-summary">地铁/公交优先</div>
-          </div>
-          <div style="margin-left:8px;display:flex;align-items:center">
-            <button class="nav-btn" id="travel-expand-btn" onclick="toggleTravelPanel()">展开</button>
-          </div>
-        </div>
-        <div class="info-card" role="status">
-          <div class="info-card-icon" aria-hidden="true">☀️</div>
-          <div>
             <div class="info-card-label">今日天气</div>
-            <div class="info-card-value" id="weather-info">晴，26°C 适合出行</div>
+            <div class="info-card-value" id="weather-info">加载中…</div>
           </div>
         </div>
         <div class="info-card" role="status">
@@ -702,10 +818,20 @@
             <div class="info-card-value" id="current-time">--:--</div>
           </div>
         </div>
+        <div class="info-card" role="status" id="travel-suggestion-card" data-desc="出行建议卡片：显示推荐的出行方式与简要理由，点击展开可选择交通方式与排序策略。">
+          <div class="info-card-icon" aria-hidden="true">🚇</div>
+          <div style="flex:1">
+            <div class="info-card-label">出行建议</div>
+            <div class="info-card-value" id="travel-suggestion-summary">地铁/公交优先</div>
+          </div>
+          <div style="margin-left:8px;display:flex;align-items:center">
+            <button class="nav-btn" id="travel-expand-btn" onclick="toggleTravelPanel()" data-desc="展开出行建议：查看并选择不同的交通方式和排序策略。">展开</button>
+          </div>
+        </div>
         <div id="travel-panel" style="display:none;padding:8px 6px;">
           <div style="display:flex;gap:8px;margin-bottom:8px;align-items:center">
             <label style="font-size:12px;color:var(--text3);width:64px">交通方式</label>
-            <select id="travel-mode-select" style="flex:1;padding:6px;border-radius:6px;border:1px solid var(--border)">
+            <select id="travel-mode-select" style="flex:1;padding:6px;border-radius:6px;border:1px solid var(--border)" data-desc="选择交通方式：切换为地铁/公交、驾车或步行等优先策略。">
               <option value="smart" selected>智能推薦（默认）</option>
               <option value="transit">地铁/公交</option>
               <option value="driving">驾车</option>
@@ -714,14 +840,14 @@
           </div>
           <div style="display:flex;gap:8px;margin-bottom:8px;align-items:center">
             <label style="font-size:12px;color:var(--text3);width:64px">排序</label>
-            <select id="travel-policy-select" style="flex:1;padding:6px;border-radius:6px;border:1px solid var(--border)">
+            <select id="travel-policy-select" style="flex:1;padding:6px;border-radius:6px;border:1px solid var(--border)" data-desc="排序策略：选择路程最短、时间最短或最经济的出行优先级。">
               <option value="LEAST_DISTANCE">路程最短</option>
               <option value="LEAST_TIME">时间最短</option>
               <option value="MOST_ECONOMICAL">最经济</option>
             </select>
           </div>
           <div style="display:flex;gap:8px;">
-            <button class="nav-btn" style="flex:1;justify-content:center" onclick="planRouteFromSuggestion()">在地图上规划路线</button>
+            <button class="nav-btn" style="flex:1;justify-content:center" onclick="planRouteFromSuggestion()" data-desc="在地图上规划路线：根据所选交通方式在地图上绘制并优化路线。">在地图上规划路线</button>
             <button class="nav-btn" style="flex:1;justify-content:center" onclick="collapseTravelPanel()">收起</button>
           </div>
         </div>
@@ -731,1781 +857,98 @@
     <div class="sidebar-section">
       <h3>快捷功能</h3>
       <div style="display:flex;flex-direction:column;gap:8px;">
-        <button class="nav-btn" style="width:100%;justify-content:flex-start;" onclick="clearChat()" aria-label="清空对话重新开始">
-          🔄 重新规划
+        <button class="nav-btn" style="width:100%;justify-content:flex-start;flex-direction:column;align-items:flex-start;gap:2px;padding:12px 14px;" onclick="clearChat()" aria-label="清空对话重新开始">
+          <span style="font-size:1.3rem;">🔄</span>
+          <span style="font-weight:700;">重新规划</span>
+          <span style="font-size:0.75rem;color:var(--text-3);">清空对话，重新开始</span>
         </button>
-        <button class="nav-btn" style="width:100%;justify-content:flex-start;" onclick="showShareModal()" aria-label="分享行程计划">
-          📤 分享行程
+        <button class="nav-btn" style="width:100%;justify-content:flex-start;flex-direction:column;align-items:flex-start;gap:2px;padding:12px 14px;" onclick="showShareModal()" aria-label="分享行程计划">
+          <span style="font-size:1.3rem;">📤</span>
+          <span style="font-weight:700;">分享行程</span>
+          <span style="font-size:0.75rem;color:var(--text-3);">复制文字 / 生成二维码</span>
         </button>
-        <button class="nav-btn" style="width:100%;justify-content:flex-start;" onclick="speakLastPlan()" aria-label="语音朗读当前行程">
-          🔊 朗读行程
+        <button class="nav-btn" style="width:100%;justify-content:flex-start;flex-direction:column;align-items:flex-start;gap:2px;padding:12px 14px;" onclick="speakLastPlan()" aria-label="语音朗读当前行程">
+          <span style="font-size:1.3rem;">🔊</span>
+          <span style="font-weight:700;">朗读行程</span>
+          <span style="font-size:0.75rem;color:var(--text-3);">语音播报全程安排</span>
         </button>
       </div>
     </div>
   </aside>
+  <!-- Full map modal -->
+  <div id="mapModal" style="display:none; position:fixed; top:0; left:0; right:0; bottom:0; z-index:9000; align-items:stretch; justify-content:stretch; flex-direction:column;">
+    
+
+    <div style="position:relative; width:100%; height:100%; background:var(--surface); display:flex;">
+      <!-- LEFT ITINERARY PANEL -->
+      <div id="mapLeftPanel" style="width:260px; min-width:200px; background:var(--surface); border-right:1.5px solid var(--border); padding:16px 14px; display:flex; flex-direction:column; gap:10px; overflow-y:auto; text-align:left;">
+        <label style="font-size:12px; color:var(--text-3); font-weight:600; display:block;">📍 行程时间轴</label>
+        <div id="mapItineraryTimeline" style="display:flex; flex-direction:column; gap:6px; overflow-y:auto; flex:1;">
+        </div>
+        <div id="routeDetailsPanel" style="background:var(--bg); border:1px solid var(--border); border-radius:8px; padding:10px; display:none; font-size:13px; color:var(--text-2); max-height:200px; overflow-y:auto;"></div>
+      </div>
+
+          <!-- RIGHT MAP CONTAINER -->
+          <div style="flex:1;position:relative;height:100%;">
+            <div style="position:absolute;right:12px;top:12px;z-index:20;"><button class="nav-btn" onclick="closeFullMap()">关闭</button></div>
+            <div id="amap-full" style="width:100%;height:100%"></div>
+            <div id="mapControls" style="position:absolute;left:12px;top:12px;z-index:20;display:flex;gap:8px;align-items:center;padding:6px;background:rgba(255,255,255,0.9);border-radius:8px;border:1px solid var(--border)">
+              <select id="routeModeSelect"><option value="smart">智能推薦</option><option value="driving">驾车</option><option value="transit">公交</option><option value="walking">步行</option></select>
+              <select id="routePolicySelect"><option value="LEAST_DISTANCE">路程最短</option><option value="LEAST_TIME">时间最短</option><option value="MOST_ECONOMICAL">最经济</option></select>
+              <button class="nav-btn" onclick="planRouteOnMap()">规划路线</button>
+            </div>
+            
+          </div>
+          
+        </div>
+      </div>
+</div>
+
+<!-- HISTORY SIDEBAR (左側抽屜) -->
+<div id="historySidebar" style="position:fixed;left:-360px;top:60px;bottom:0;width:340px;background:var(--surface);border-right:1.5px solid var(--border);z-index:600;transition:left 0.25s;overflow:auto;box-shadow:4px 0 24px rgba(0,0,0,0.08);">
+  <div style="padding:16px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;">
+    <strong>历史规划</strong>
+    <div style="display:flex;gap:8px;align-items:center;">
+      <button class="nav-btn" onclick="newChat()" title="开始新对话">＋</button>
+      <button class="nav-btn" onclick="toggleHistorySidebar()">关闭</button>
+    </div>
+  </div>
+  <div id="historyList" style="padding:12px;display:flex;flex-direction:column;gap:8px;"></div>
 </div>
 
 <!-- SHARE MODAL -->
 <div class="modal-overlay" id="share-modal" role="dialog" aria-modal="true" aria-labelledby="share-title" onclick="closeModal(event)">
-  <div class="modal">
-    <h2 id="share-title">📤 分享行程计划</h2>
-    <div class="share-text" id="share-content" aria-label="行程摘要文字">
-      搞定了！下午 2:00 出发，先去世纪公园玩2小时（儿童游乐区超棒），4:30 去外婆家菜馆吃上海本帮菜（已预约靠窗位置），6:30 顺路去淮海路citywalk逛逛。预计晚上8点回家，总费用约 ¥280。
+  <div class="modal" style="max-width:520px;">
+    <h2 id="share-title">📤 分享行程</h2>
+
+    <!-- 文字摘要 -->
+    <div style="margin-bottom:10px;font-size:0.8rem;color:var(--text-3);font-weight:600;">📝 文字摘要</div>
+    <div class="share-text" id="share-content" aria-label="行程摘要文字" style="margin-bottom:12px;">
+      搞定了！下午 2:00 出发，先去世纪公园玩2小时，4:30 去外婆家菜馆吃饭，6:30 淮海路citywalk。预计晚上8点回家，总费用约 ¥280。
     </div>
-    <div class="modal-actions">
+
+    <!-- 二维码 -->
+    <div style="margin-bottom:10px;font-size:0.8rem;color:var(--text-3);font-weight:600;">📱 扫码查看（另一设备打开）</div>
+    <div id="share-qrcode" style="display:flex;justify-content:center;margin-bottom:16px;min-height:128px;align-items:center;">
+      <div style="color:var(--text-4);font-size:0.85rem;">生成行程后自动显示二维码</div>
+    </div>
+
+    <div class="modal-actions" style="flex-wrap:wrap;gap:8px;">
       <button class="modal-btn primary" onclick="copyShareText()" aria-label="复制行程文字">📋 复制文字</button>
-      <button class="modal-btn secondary" onclick="document.getElementById('share-modal').classList.remove('open')" aria-label="关闭分享弹窗">关闭</button>
+      <button class="modal-btn primary" onclick="copyWechatText()" style="background:var(--success);border-color:var(--success);" aria-label="复制微信分享内容">💬 复制给微信好友</button>
+      <button class="modal-btn secondary" onclick="document.getElementById('share-modal').classList.remove('open')" aria-label="关闭">✕ 关闭</button>
     </div>
   </div>
 </div>
 
+<script src="tools/extract_intent.js"></script>
+<script src="tools/search_activities.js"></script>
+<script src="tools/search_restaurants.js"></script>
+<script src="tools/plan_itinerary.js"></script>
+<script src="tools/excute_booking.js"></script>
+<script src="tools/share_plan.js"></script>
+<script src="tools/get_weather.js"></script>
 <script>
-// ══════════════════════════════════════════════════════════════
-// Tool 1: extract_intent
-// ══════════════════════════════════════════════════════════════
-
-/**
- * Tool 1: extract_intent
- * ─────────────────────────────────────────────────────────────
- * 职责：把用户一句自然语言 → 结构化 Intent 对象
- *
- * 调用方式（浏览器环境，GLM-4-Flash）：
- *   const result = await extractIntent(userText, { apiKey, onClarify });
- *
- * 返回值（IntentResult）：
- *   { ok: true,  intent: IntentObject }   ← 成功
- *   { ok: false, clarify: string }        ← 需要追问
- *   { ok: false, error: string }          ← API/解析失败，已降级
- *
- * 依赖：无第三方库，纯原生 fetch
- * ─────────────────────────────────────────────────────────────
- */
-
-// ── 常量 ──────────────────────────────────────────────────────
-
-const GLM_API_URL = 'https://open.bigmodel.cn/api/paas/v4/chat/completions';
-const GLM_MODEL   = 'glm-4-flash';       // 免费额度
-const DEEPSEEK_API_URL = 'https://api.deepseek.com/chat/completions';
-const DEEPSEEK_MODEL   = 'deepseek-chat'; // 备用
-
-// 最大追问轮数（超过则用规则引擎降级）
-const MAX_CLARIFY_ROUNDS = 2;
-
-// 追问检测：这些字段缺失时必须追问
-const REQUIRED_FIELDS = ['group_type', 'adults'];
-
-// ── System Prompt ─────────────────────────────────────────────
-
-const SYSTEM_PROMPT = `你是美团本地出行规划助手的意图解析模块。
-用户发来一句自然语言，描述他们的周末出行需求。
-你的任务是把这句话解析成一个 JSON 对象，**只输出 JSON，不要任何解释或 markdown 代码块**。
-
-JSON 结构如下（所有字段说明见注释，实际输出不含注释）：
-{
-  "group_type": "family" | "friends" | "couple" | "senior",
-  "adults": <整数，成年人数量，默认2>,
-  "children": [{ "age": <整数> }],       // 无孩子则为空数组 []
-  "radius_km": <整数，出行半径公里，默认5>,
-  "start_time": "HH:MM",                // 出发时间，默认 "14:00"
-  "duration_hours": <整数，总时长，默认5>,
-  "preferences": ["string"],            // 偏好关键词，如 "亲子""健康饮食""citywalk"
-  "budget_per_person": <整数，人均预算元，不确定则为 null>,
-  "special_needs": ["string"],          // 如 "减肥""轮椅友好""素食"
-  "missing_fields": ["string"]          // 你认为缺少哪些关键信息，填字段名；信息充足则为 []
-}
-
-解析规则：
-- "老婆最近在减肥" → special_needs 加 "健康饮食"
-- "孩子5岁" → children: [{"age": 5}]，group_type 推断为 "family"
-- "4个人2男2女" → adults: 4，group_type 推断为 "friends"
-- "别太远" → radius_km: 5
-- 用户没提预算 → budget_per_person: null
-- 信息足够规划时 missing_fields 为空数组
-- 以下情况必须在 missing_fields 中标注：用户完全没提人数时填 "adults"；完全没提场景（家庭/朋友/情侣）时填 "group_type"
-
-只输出合法 JSON，不要输出任何其他内容。`;
-
-// 追问 Prompt：当 missing_fields 非空时，让 AI 生成一句自然追问
-const CLARIFY_SYSTEM_PROMPT = `你是一个温柔的出行规划助手。
-用户填写了部分信息，但还缺少一些关键内容。
-请用一句简短、友好的中文问句（不超过30字）向用户追问缺失信息。
-只输出这一句话，不要任何其他内容。
-缺失字段：{MISSING}`;
-
-// ── 主函数 ────────────────────────────────────────────────────
-
-/**
- * @param {string}   userText   用户原始输入
- * @param {object}   options
- * @param {string}   options.glmApiKey      智谱 GLM API Key
- * @param {string}   [options.deepseekApiKey]  DeepSeek 备用 Key
- * @param {number}   [options.round=0]      当前追问轮数（内部递归用）
- * @returns {Promise<IntentResult>}
- */
-async function extractIntent(userText, options = {}) {
-  const { glmApiKey, deepseekApiKey, round = 0 } = options;
-
-  // 1. 调用 AI 解析意图
-  let raw = null;
-  let usedFallback = false;
-
-  try {
-    raw = await callGLM(userText, glmApiKey);
-  } catch (glmErr) {
-    console.warn('[extract_intent] GLM 失败，尝试 DeepSeek:', glmErr.message);
-    try {
-      raw = await callDeepSeek(userText, deepseekApiKey);
-    } catch (dsErr) {
-      console.warn('[extract_intent] DeepSeek 也失败，使用规则降级:', dsErr.message);
-      raw = ruleBasedFallback(userText);
-      usedFallback = true;
-    }
-  }
-
-  // 2. 解析 JSON
-  let intent;
-  try {
-    intent = parseIntentJSON(raw);
-  } catch (parseErr) {
-    console.warn('[extract_intent] JSON 解析失败，使用规则降级:', parseErr.message);
-    intent = ruleBasedFallback(userText);
-    usedFallback = true;
-  }
-
-  // 3. 校验必填字段
-  const validation = validateIntent(intent);
-  if (!validation.ok) {
-    // 规则降级时直接填默认值，不追问
-    if (usedFallback) {
-      intent = applyDefaults(intent);
-      return { ok: true, intent, source: 'fallback' };
-    }
-
-    // 超过最大追问次数 → 用默认值填充
-    if (round >= MAX_CLARIFY_ROUNDS) {
-      intent = applyDefaults(intent);
-      return { ok: true, intent, source: 'default_filled' };
-    }
-
-    // 生成追问文案
-    const clarifyText = await generateClarifyQuestion(
-      intent.missing_fields || validation.missingFields,
-      glmApiKey
-    );
-    return { ok: false, clarify: clarifyText, intent, round };
-  }
-
-  // 4. 补全可选字段的默认值
-  intent = applyDefaults(intent);
-  return { ok: true, intent, source: usedFallback ? 'fallback' : 'ai' };
-}
-
-// ── GLM API 调用 ──────────────────────────────────────────────
-
-async function callGLM(userText, apiKey) {
-  if (!apiKey) throw new Error('GLM API Key 未配置');
-
-  const res = await fetch(GLM_API_URL, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${apiKey}`
-    },
-    body: JSON.stringify({
-      model: GLM_MODEL,
-      max_tokens: 512,
-      temperature: 0.1,   // 低温保证 JSON 稳定输出
-      messages: [
-        { role: 'system', content: SYSTEM_PROMPT },
-        { role: 'user',   content: userText }
-      ]
-    }),
-    signal: AbortSignal.timeout(8000)   // 8秒超时
-  });
-
-  if (!res.ok) {
-    const body = await res.text();
-    throw new Error(`GLM HTTP ${res.status}: ${body.slice(0, 200)}`);
-  }
-
-  const data = await res.json();
-  return data.choices?.[0]?.message?.content ?? '';
-}
-
-// ── DeepSeek 备用 ─────────────────────────────────────────────
-
-async function callDeepSeek(userText, apiKey) {
-  if (!apiKey) throw new Error('DeepSeek API Key 未配置');
-
-  const res = await fetch(DEEPSEEK_API_URL, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${apiKey}`
-    },
-    body: JSON.stringify({
-      model: DEEPSEEK_MODEL,
-      max_tokens: 512,
-      temperature: 0.1,
-      messages: [
-        { role: 'system', content: SYSTEM_PROMPT },
-        { role: 'user',   content: userText }
-      ]
-    }),
-    signal: AbortSignal.timeout(10000)
-  });
-
-  if (!res.ok) {
-    const body = await res.text();
-    throw new Error(`DeepSeek HTTP ${res.status}: ${body.slice(0, 200)}`);
-  }
-
-  const data = await res.json();
-  return data.choices?.[0]?.message?.content ?? '';
-}
-
-// ── 规则降级（无网络/无 Key 时） ───────────────────────────────
-
-/**
- * 纯关键词匹配，保证离线也能跑
- * 不调用 AI，直接从文本提取关键信息
- */
-function ruleBasedFallback(text) {
-  const t = text;
-
-  // group_type
-  let group_type = 'friends';
-  if (/孩子|宝宝|亲子|小孩|儿子|女儿/.test(t)) group_type = 'family';
-  else if (/老婆|老公|媳妇|爱人|两个人.*约会|约会/.test(t)) group_type = 'couple';
-  else if (/爸妈|父母|爷爷|奶奶|姥姥|姥爷|长辈|老人/.test(t)) group_type = 'senior';
-
-  // adults
-  const adultMatch = t.match(/(\d+)\s*[个名位人]/);
-  let adults = adultMatch ? parseInt(adultMatch[1]) : 2;
-  if (group_type === 'couple') adults = 2;
-
-  // children
-  const children = [];
-  const childAgeMatches = [...t.matchAll(/孩子\s*(\d+)\s*岁|(\d+)\s*岁.*?孩子/g)];
-  childAgeMatches.forEach(m => {
-    const age = parseInt(m[1] || m[2]);
-    if (!isNaN(age) && age < 18) children.push({ age });
-  });
-  if (group_type === 'family' && children.length === 0) children.push({ age: 5 });
-
-  // radius
-  let radius_km = 5;
-  if (/别.*太远|不.*太远|附近|周边/.test(t)) radius_km = 5;
-  else if (/稍微远|可以远/.test(t)) radius_km = 15;
-  else if (/市内|市区/.test(t)) radius_km = 10;
-
-  // time
-  const timeMatch = t.match(/(上午|下午|晚上|早上)?\s*(\d{1,2})\s*[点:时]\s*(\d{0,2})/);
-  let start_time = '14:00';
-  if (timeMatch) {
-    const period = timeMatch[1] || '';
-    let h = parseInt(timeMatch[2]);
-    const m = (timeMatch[3] || '00').padStart(2, '0');
-    if ((period === '下午' || period === '晚上') && h < 12) h += 12;
-    if (period === '上午' && h === 12) h = 0;
-    start_time = `${String(h).padStart(2, '0')}:${m}`;
-  }
-
-  // duration
-  const durMatch = t.match(/(\d+)\s*[个]?\s*小时/);
-  const duration_hours = durMatch ? parseInt(durMatch[1]) : 5;
-
-  // preferences
-  const preferences = [];
-  if (/亲子|孩子|游乐/.test(t)) preferences.push('亲子');
-  if (/citywalk|散步|逛逛/.test(t)) preferences.push('citywalk');
-  if (/展览|博物馆|美术馆/.test(t)) preferences.push('展览');
-  if (/购物|逛街/.test(t)) preferences.push('购物');
-  if (/自然|公园|爬山/.test(t)) preferences.push('户外');
-
-  // special_needs
-  const special_needs = [];
-  if (/减肥|健康|轻食|低卡/.test(t)) special_needs.push('健康饮食');
-  if (/素食|不吃肉/.test(t)) special_needs.push('素食');
-  if (/轮椅|无障碍/.test(t)) special_needs.push('无障碍');
-
-  return {
-    group_type, adults, children,
-    radius_km, start_time, duration_hours,
-    preferences, special_needs,
-    budget_per_person: null,
-    missing_fields: []
-  };
-}
-
-// ── JSON 解析（健壮版） ────────────────────────────────────────
-
-function parseIntentJSON(raw) {
-  if (!raw || typeof raw !== 'string') throw new Error('空响应');
-
-  // 去掉 AI 可能输出的 markdown 代码块包裹
-  let cleaned = raw
-    .replace(/^```json\s*/i, '')
-    .replace(/^```\s*/i, '')
-    .replace(/```\s*$/i, '')
-    .trim();
-
-  // 提取第一个 { ... } 块（防止 AI 在 JSON 后多输出文字）
-  const start = cleaned.indexOf('{');
-  const end   = cleaned.lastIndexOf('}');
-  if (start === -1 || end === -1) throw new Error('响应中找不到 JSON 对象');
-  cleaned = cleaned.slice(start, end + 1);
-
-  const obj = JSON.parse(cleaned);   // 若格式错误会抛出
-
-  // 类型归一化
-  if (typeof obj.adults !== 'number') obj.adults = parseInt(obj.adults) || 2;
-  if (!Array.isArray(obj.children))   obj.children = [];
-  if (!Array.isArray(obj.preferences)) obj.preferences = [];
-  if (!Array.isArray(obj.special_needs)) obj.special_needs = [];
-  if (!Array.isArray(obj.missing_fields)) obj.missing_fields = [];
-
-  return obj;
-}
-
-// ── 校验 ──────────────────────────────────────────────────────
-
-function validateIntent(intent) {
-  const missing = [];
-  for (const field of REQUIRED_FIELDS) {
-    if (intent[field] === undefined || intent[field] === null || intent[field] === '') {
-      missing.push(field);
-    }
-  }
-  // 也把 AI 自己标注的 missing_fields 合并进来
-  const aiMissing = intent.missing_fields || [];
-  const allMissing = [...new Set([...missing, ...aiMissing])];
-
-  if (allMissing.length > 0) {
-    return { ok: false, missingFields: allMissing };
-  }
-  return { ok: true };
-}
-
-// ── 默认值填充 ────────────────────────────────────────────────
-
-function applyDefaults(intent) {
-  return {
-    group_type:        intent.group_type        ?? 'friends',
-    adults:            intent.adults            ?? 2,
-    children:          intent.children          ?? [],
-    radius_km:         intent.radius_km         ?? 5,
-    start_time:        intent.start_time        ?? '14:00',
-    duration_hours:    intent.duration_hours    ?? 5,
-    preferences:       intent.preferences       ?? [],
-    special_needs:     intent.special_needs     ?? [],
-    budget_per_person: intent.budget_per_person ?? null,
-    missing_fields:    []   // 已处理，清空
-  };
-}
-
-// ── 生成追问文案 ──────────────────────────────────────────────
-
-const CLARIFY_QUESTIONS = {
-  adults:     '请问这次出行一共几个人呢？',
-  group_type: '请问是和家人、朋友，还是和另一半出行呢？',
-  start_time: '请问打算几点出发呢？',
-  radius_km:  '请问可以接受离家多远的地方？'
-};
-
-async function generateClarifyQuestion(missingFields, apiKey) {
-  // 优先用本地模板（快速，无需网络）
-  if (missingFields.length === 1 && CLARIFY_QUESTIONS[missingFields[0]]) {
-    return CLARIFY_QUESTIONS[missingFields[0]];
-  }
-
-  // 多个字段缺失：尝试让 AI 生成自然的追问
-  if (apiKey) {
-    try {
-      const prompt = CLARIFY_SYSTEM_PROMPT.replace('{MISSING}', missingFields.join('、'));
-      const res = await fetch(GLM_API_URL, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${apiKey}`
-        },
-        body: JSON.stringify({
-          model: GLM_MODEL,
-          max_tokens: 60,
-          temperature: 0.7,
-          messages: [{ role: 'user', content: prompt }]
-        }),
-        signal: AbortSignal.timeout(5000)
-      });
-      if (res.ok) {
-        const data = await res.json();
-        const text = data.choices?.[0]?.message?.content?.trim();
-        if (text) return text;
-      }
-    } catch (_) { /* 降级到模板 */ }
-  }
-
-  // 最终降级：拼接模板
-  return missingFields
-    .map(f => CLARIFY_QUESTIONS[f] ?? `请补充 ${f} 信息`)
-    .join('另外，');
-}
-
-// ── 导出（浏览器 + Node 双兼容） ──────────────────────────────
-
-
-
-/**
- * Tool 2: search_activities
- * ─────────────────────────────────────────────────────────────
- * 职责：根据 Intent 查询适合的活动场所，返回评分排序后的候选列表
- *
- * 调用：const result = await searchActivities(intent, options?)
- * 返回：{ ok, activities[], meta }
- * ─────────────────────────────────────────────────────────────
- */
-
-const ACTIVITIES_DB = [
-  // ── 亲子 / 家庭 ──────────────────────────────────────────────
-  {
-    id: 'act_001', name: '世纪公园', type: 'park',
-    tags: ['亲子','免费','宽敞','户外','草坪'],
-    suitable_for: ['family','couple','senior'],
-    min_age: 0, duration_min: 120, rating: 4.7, distance_km: 3.2,
-    open_now: true, ticket_price: 0, icon: '🌳',
-    desc: '上海最大城市公园，儿童游乐设施齐全，草坪宽阔适合野餐，老人推着轮椅也能轻松游览。',
-    address: '浦东新区锦绣路1001号'
-  },
-  {
-    id: 'act_002', name: '上海科技馆', type: 'museum',
-    tags: ['亲子','室内','科技','互动','教育'],
-    suitable_for: ['family'],
-    min_age: 3, duration_min: 150, rating: 4.6, distance_km: 3.8,
-    open_now: true, ticket_price: 60, icon: '🔬',
-    desc: '寓教于乐的科技互动体验馆，孩子能亲手做实验，周末需提前预约。',
-    address: '浦东新区世纪大道2000号'
-  },
-  {
-    id: 'act_003', name: '上海野生动物园', type: 'park',
-    tags: ['亲子','动物','户外','刺激'],
-    suitable_for: ['family'],
-    min_age: 2, duration_min: 180, rating: 4.5, distance_km: 28.0,
-    open_now: true, ticket_price: 180, icon: '🦁',
-    desc: '可近距离接触动物，小朋友最爱，距市区较远建议自驾。',
-    address: '浦东新区南六公路178号'
-  },
-  {
-    id: 'act_004', name: 'K11购物艺术中心', type: 'mall',
-    tags: ['亲子','室内','艺术','购物','雨天'],
-    suitable_for: ['family','couple','friends'],
-    min_age: 0, duration_min: 90, rating: 4.5, distance_km: 1.2,
-    open_now: true, ticket_price: 0, icon: '🛍️',
-    desc: '艺术与商业结合，B3层有互动儿童区，适合饭后遛娃，雨天首选。',
-    address: '黄浦区淮海中路300号'
-  },
-  {
-    id: 'act_005', name: '上海自然博物馆', type: 'museum',
-    tags: ['亲子','室内','科普','恐龙','教育'],
-    suitable_for: ['family'],
-    min_age: 3, duration_min: 120, rating: 4.8, distance_km: 5.5,
-    open_now: true, ticket_price: 30, icon: '🦕',
-    desc: '超人气科普博物馆，恐龙化石镇馆之宝，周末需提前一周预约门票。',
-    address: '静安区北京西路510号'
-  },
-  // ── Citywalk / 朋友 ──────────────────────────────────────────
-  {
-    id: 'act_006', name: '武康路历史文化街区', type: 'citywalk',
-    tags: ['citywalk','打卡','历史建筑','咖啡','法式'],
-    suitable_for: ['friends','couple'],
-    min_age: 0, duration_min: 90, rating: 4.9, distance_km: 4.1,
-    open_now: true, ticket_price: 0, icon: '🏛️',
-    desc: '上海最美法式梧桐马路，沿途精品咖啡馆、独立书店和历史建筑，4人同行正好。',
-    address: '徐汇区武康路'
-  },
-  {
-    id: 'act_007', name: 'TX淮海·潮流文化公园', type: 'mall',
-    tags: ['潮流','艺术','拍照','展览','年轻'],
-    suitable_for: ['friends','couple'],
-    min_age: 0, duration_min: 90, rating: 4.6, distance_km: 1.5,
-    open_now: true, ticket_price: 0, icon: '🎨',
-    desc: '沉浸式潮流地标，周末常有快闪展览和文化活动，适合年轻人打卡拍照。',
-    address: '黄浦区淮海中路999号'
-  },
-  {
-    id: 'act_008', name: '上海当代艺术博物馆 PSA', type: 'exhibition',
-    tags: ['展览','当代艺术','室内','拍照','文艺'],
-    suitable_for: ['friends','couple'],
-    min_age: 0, duration_min: 120, rating: 4.7, distance_km: 2.3,
-    open_now: true, ticket_price: 40, icon: '🖼️',
-    desc: '中国第一家公立当代艺术博物馆，常设大型国际展览，文艺青年必去。',
-    address: '黄浦区花园港路200号'
-  },
-  {
-    id: 'act_009', name: '思南公馆', type: 'citywalk',
-    tags: ['citywalk','历史建筑','咖啡','文艺','花园'],
-    suitable_for: ['friends','couple','family'],
-    min_age: 0, duration_min: 60, rating: 4.6, distance_km: 2.8,
-    open_now: true, ticket_price: 0, icon: '🌸',
-    desc: '保存完好的欧式历史建筑群，周末常有市集和文化活动，咖啡馆遍布，适合漫步。',
-    address: '黄浦区复兴中路517号'
-  },
-  {
-    id: 'act_010', name: '上海滨江大道', type: 'outdoor',
-    tags: ['户外','江景','骑行','散步','免费'],
-    suitable_for: ['friends','couple','family','senior'],
-    min_age: 0, duration_min: 90, rating: 4.5, distance_km: 2.0,
-    open_now: true, ticket_price: 0, icon: '🌊',
-    desc: '浦东滨江景观带，可俯瞰外滩对岸景色，傍晚最美，适合散步或骑行。',
-    address: '浦东新区滨江大道'
-  },
-  // ── 情侣 ─────────────────────────────────────────────────────
-  {
-    id: 'act_011', name: '上海植物园', type: 'park',
-    tags: ['花园','浪漫','户外','拍照','情侣'],
-    suitable_for: ['couple','family','senior'],
-    min_age: 0, duration_min: 120, rating: 4.4, distance_km: 9.5,
-    open_now: true, ticket_price: 15, icon: '🌺',
-    desc: '四季有花，温室展览别具一格，是拍照和悠闲漫步的好去处。',
-    address: '徐汇区龙吴路1111号'
-  },
-  {
-    id: 'act_012', name: '1933老场坊', type: 'exhibition',
-    tags: ['工业遗址','文创','展览','拍照','独特'],
-    suitable_for: ['couple','friends'],
-    min_age: 0, duration_min: 60, rating: 4.3, distance_km: 4.6,
-    open_now: true, ticket_price: 0, icon: '🏭',
-    desc: '百年屠宰场改造的创意园区，空间极具设计感，各类展览轮番上演。',
-    address: '虹口区沙泾路10号'
-  },
-  // ── 长辈 / 老年人 ─────────────────────────────────────────────
-  {
-    id: 'act_013', name: '人民广场及周边', type: 'outdoor',
-    tags: ['散步','免费','无障碍','长辈','市中心'],
-    suitable_for: ['senior','family'],
-    min_age: 0, duration_min: 60, rating: 4.3, distance_km: 1.5,
-    open_now: true, ticket_price: 0, icon: '🏙️',
-    desc: '市中心广场，平坦宽阔无台阶，适合老人散步，周边博物馆群可顺道参观。',
-    address: '黄浦区人民大道'
-  },
-  {
-    id: 'act_014', name: '上海博物馆', type: 'museum',
-    tags: ['文化','历史','室内','免费','长辈','无障碍'],
-    suitable_for: ['senior','family','friends'],
-    min_age: 0, duration_min: 120, rating: 4.8, distance_km: 1.8,
-    open_now: true, ticket_price: 0, icon: '🏺',
-    desc: '免费开放的国家级历史博物馆，青铜器、书画藏品丰富，老人文化游首选。',
-    address: '黄浦区人民大道201号'
-  }
-];
-
-const SCORE_WEIGHTS = {
-  suitability: 0.35, rating: 0.25,
-  distance: 0.20,    preference: 0.15, child_safety: 0.05
-};
-
-async function searchActivities(intent, options = {}) {
-  const { limit = 6, minRating = 4.0, mockDelayMs = 200 } = options;
-  await new Promise(r => setTimeout(r, mockDelayMs));
-
-  try {
-    let candidates = ACTIVITIES_DB.filter(a => {
-      if (a.rating < minRating) return false;
-      if (a.distance_km > intent.radius_km * 1.2) return false;
-      if (intent.children && intent.children.length > 0) {
-        const minChildAge = Math.min(...intent.children.map(c => c.age));
-        if (a.min_age > minChildAge) return false;
-      }
-      return true;
-    });
-
-    candidates = candidates
-      .map(a => ({ ...a, _score: computeScore(a, intent) }))
-      .sort((a, b) => b._score - a._score);
-
-    const result = diversify(candidates, limit);
-    const activities = result.map(a => formatActivity(a, intent));
-
-    return {
-      ok: true, activities,
-      meta: { total_candidates: candidates.length, source: 'mock' }
-    };
-  } catch (err) {
-    return {
-      ok: false, error: err.message,
-      activities: getFallbackActivities(intent),
-      meta: { source: 'fallback' }
-    };
-  }
-}
-
-function computeScore(activity, intent) {
-  let score = 0;
-  const suitability = activity.suitable_for.includes(intent.group_type) ? 1.0 : 0.3;
-  score += SCORE_WEIGHTS.suitability * suitability;
-  score += SCORE_WEIGHTS.rating * (activity.rating / 5.0);
-  const distScore = Math.max(0, 1 - activity.distance_km / (intent.radius_km * 1.2));
-  score += SCORE_WEIGHTS.distance * distScore;
-  const prefs = intent.preferences || [];
-  if (prefs.length > 0) {
-    const matchCount = prefs.filter(p =>
-      activity.tags.some(t => t.includes(p) || p.includes(t))
-    ).length;
-    score += SCORE_WEIGHTS.preference * (matchCount / prefs.length);
-  } else {
-    score += SCORE_WEIGHTS.preference * 0.5;
-  }
-  if (intent.children && intent.children.length > 0) {
-    const cf = activity.tags.some(t => ['亲子','儿童','互动','游乐'].includes(t));
-    score += SCORE_WEIGHTS.child_safety * (cf ? 1.0 : 0.0);
-  }
-  return score;
-}
-
-function diversify(sorted, limit) {
-  const result = [], typeCount = {};
-  for (const a of sorted) {
-    if (result.length >= limit) break;
-    typeCount[a.type] = typeCount[a.type] || 0;
-    if (typeCount[a.type] < 2) { result.push(a); typeCount[a.type]++; }
-  }
-  if (result.length < Math.min(limit, 3)) {
-    for (const a of sorted) {
-      if (result.length >= limit) break;
-      if (!result.find(r => r.id === a.id)) result.push(a);
-    }
-  }
-  return result;
-}
-
-function minutesToTime(totalMinutes) {
-  const h = Math.floor(totalMinutes / 60) % 24;
-  const m = totalMinutes % 60;
-  return `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}`;
-}
-
-function mockAvailability(type) {
-  const needBooking = ['museum','exhibition'].includes(type);
-  const r = Math.random();
-  if (needBooking) {
-    if (r < 0.4) return { status: 'available', label: '可直接入场' };
-    if (r < 0.8) return { status: 'booking',   label: '建议提前预约' };
-    return           { status: 'crowded',       label: '今日较拥挤' };
-  }
-  if (r < 0.7) return { status: 'available', label: '随时可去' };
-  return         { status: 'busy',           label: '周末较热门' };
-}
-
-function buildBadge(availability, ticketPrice) {
-  const map = { available: null, booking: '📅 建议预约', crowded: '⚠️ 今日拥挤', busy: '🔥 周末热门' };
-  const badge = map[availability.status];
-  if (ticketPrice === 0 && !badge) return '✅ 免费';
-  return badge;
-}
-
-function formatActivity(raw, intent) {
-  const [sh, sm] = (intent.start_time || '14:00').split(':').map(Number);
-  const startMin = sh * 60 + sm;
-  const arrivalTime = minutesToTime(startMin);
-  const endTime = minutesToTime(startMin + raw.duration_min);
-  const availability = mockAvailability(raw.type);
-  return {
-    id: raw.id, name: raw.name, type: raw.type, icon: raw.icon,
-    tags: raw.tags.slice(0, 4), desc: raw.desc, address: raw.address,
-    rating: raw.rating, distance_km: raw.distance_km,
-    distance_text: `${raw.distance_km}km`,
-    duration_min: raw.duration_min,
-    duration_text: raw.duration_min >= 60
-      ? `${raw.duration_min / 60}小时` : `${raw.duration_min}分钟`,
-    time_range: `${arrivalTime} - ${endTime}`,
-    arrival_time: arrivalTime,
-    ticket_price: raw.ticket_price,
-    price_text: raw.ticket_price === 0 ? '免费' : `¥${raw.ticket_price}/人`,
-    open_now: raw.open_now, availability,
-    badge: buildBadge(availability, raw.ticket_price),
-    score: Math.round((raw._score || 0) * 100),
-    category: 'activity'
-  };
-}
-
-function getFallbackActivities(intent) {
-  const isFamily = ['family','senior'].includes(intent.group_type);
-  const pool = isFamily
-    ? ACTIVITIES_DB.filter(a => a.suitable_for.includes('family')).slice(0, 3)
-    : ACTIVITIES_DB.filter(a => a.suitable_for.includes('friends')).slice(0, 3);
-  return pool.map(a => formatActivity({ ...a, _score: 0.5 }, intent));
-}
-
-
-
-/**
- * Tool 3: search_restaurants
- * ─────────────────────────────────────────────────────────────
- * 职责：根据 Intent 查询餐厅，含实时等位模拟、健康度过滤、
- *       儿童友好标记，返回排序后的候选列表
- *
- * 调用：const result = await searchRestaurants(intent, options?)
- * 返回：{ ok, restaurants[], meta }
- * ─────────────────────────────────────────────────────────────
- */
-
-// ── Mock 餐厅数据库 ───────────────────────────────────────────
-// wait_base_min  平日基础等位时间（分钟），周末 × 1.5
-// healthy_score  健康度 1-5（5=最健康：蔬菜/轻食/低油）
-// kid_menu       是否有儿童餐
-// wheelchair     是否无障碍/轮椅友好
-// reservable     是否支持提前预约
-
-const RESTAURANTS_DB = [
-  // ── 本帮菜 / 中餐 ─────────────────────────────────────────
-  {
-    id: 'rst_001', name: '外婆家菜馆·浦东店', cuisine: '本帮菜',
-    tags: ['本帮菜','儿童友好','可预约','家常'],
-    suitable_for: ['family','senior'],
-    rating: 4.8, distance_km: 0.8,
-    price_per_person: 80,
-    healthy_score: 3,
-    kid_menu: true, wheelchair: true, reservable: true,
-    wait_base_min: 10,
-    open_now: true, icon: '🍜',
-    desc: '人气上海本帮菜，宝宝饭可免费加热，靠窗位置风景好。',
-    address: '浦东新区世纪大道88号'
-  },
-  {
-    id: 'rst_002', name: '老吉士酒家', cuisine: '本帮菜',
-    tags: ['本帮菜','人气','老字号','需排队'],
-    suitable_for: ['friends','couple'],
-    rating: 4.6, distance_km: 0.3,
-    price_per_person: 120,
-    healthy_score: 2,
-    kid_menu: false, wheelchair: false, reservable: false,
-    wait_base_min: 30,
-    open_now: true, icon: '🥘',
-    desc: '明星同款本帮菜老字号，红烧肉和腌笃鲜招牌，需提前到场叫号。',
-    address: '黄浦区天平路41号'
-  },
-  {
-    id: 'rst_003', name: '南翔馒头店·城隍庙', cuisine: '点心',
-    tags: ['小笼包','点心','老字号','上海特色'],
-    suitable_for: ['family','friends','senior'],
-    rating: 4.5, distance_km: 2.1,
-    price_per_person: 60,
-    healthy_score: 3,
-    kid_menu: false, wheelchair: true, reservable: false,
-    wait_base_min: 40,
-    open_now: true, icon: '🥟',
-    desc: '百年老字号小笼包，皮薄汤鲜，游客必打卡，周末排队较长。',
-    address: '黄浦区豫园路85号'
-  },
-  {
-    id: 'rst_004', name: '鼎泰丰·新天地店', cuisine: '台式点心',
-    tags: ['小笼包','精致','可预约','国际知名'],
-    suitable_for: ['family','couple','friends'],
-    rating: 4.7, distance_km: 1.9,
-    price_per_person: 150,
-    healthy_score: 3,
-    kid_menu: true, wheelchair: true, reservable: true,
-    wait_base_min: 20,
-    open_now: true, icon: '🍱',
-    desc: '精工细作的台式点心，儿童专属餐具和儿童餐，预约后基本不用等。',
-    address: '黄浦区马当路181号'
-  },
-  // ── 健康 / 轻食 ───────────────────────────────────────────
-  {
-    id: 'rst_005', name: 'wagas沙拉·陆家嘴店', cuisine: '轻食',
-    tags: ['健康','轻食','沙拉','低卡','减脂'],
-    suitable_for: ['friends','couple'],
-    rating: 4.4, distance_km: 1.1,
-    price_per_person: 90,
-    healthy_score: 5,
-    kid_menu: false, wheelchair: true, reservable: false,
-    wait_base_min: 5,
-    open_now: true, icon: '🥗',
-    desc: '上海最受欢迎的健康轻食连锁，沙拉、烤鸡和全麦三明治，减脂首选。',
-    address: '浦东新区陆家嘴环路1000号'
-  },
-  {
-    id: 'rst_006', name: '新素代·素食餐厅', cuisine: '素食',
-    tags: ['素食','健康','低卡','环保','精致'],
-    suitable_for: ['friends','couple','senior'],
-    rating: 4.3, distance_km: 3.2,
-    price_per_person: 100,
-    healthy_score: 5,
-    kid_menu: false, wheelchair: true, reservable: true,
-    wait_base_min: 5,
-    open_now: true, icon: '🌱',
-    desc: '精致素食料理，不输荤菜的口感，减肥或有特殊饮食需求首选。',
-    address: '静安区南京西路1068号'
-  },
-  {
-    id: 'rst_007', name: '绿茶餐厅·新天地店', cuisine: '江浙菜',
-    tags: ['健康','家常','性价比','江浙菜'],
-    suitable_for: ['family','friends','senior'],
-    rating: 4.4, distance_km: 1.8,
-    price_per_person: 70,
-    healthy_score: 4,
-    kid_menu: true, wheelchair: true, reservable: true,
-    wait_base_min: 25,
-    open_now: true, icon: '🍃',
-    desc: '高性价比江浙家常菜，招牌面包诱惑鸡，家庭聚餐和轻松聚会都合适。',
-    address: '黄浦区太仓路181号'
-  },
-  // ── 日料 / 西餐 ───────────────────────────────────────────
-  {
-    id: 'rst_008', name: '寿司郎·浦东店', cuisine: '日料',
-    tags: ['日料','回转寿司','性价比','新鲜'],
-    suitable_for: ['friends','couple','family'],
-    rating: 4.5, distance_km: 2.4,
-    price_per_person: 110,
-    healthy_score: 4,
-    kid_menu: true, wheelchair: true, reservable: true,
-    wait_base_min: 15,
-    open_now: true, icon: '🍣',
-    desc: '高人气回转寿司连锁，食材新鲜，支持线上候位，减少现场等待。',
-    address: '浦东新区张杨路500号'
-  },
-  {
-    id: 'rst_009', name: 'THE CANNERY·新天地', cuisine: '西餐',
-    tags: ['西餐','精酿啤酒','聚会','美式'],
-    suitable_for: ['friends','couple'],
-    rating: 4.5, distance_km: 2.0,
-    price_per_person: 180,
-    healthy_score: 3,
-    kid_menu: false, wheelchair: true, reservable: true,
-    wait_base_min: 10,
-    open_now: true, icon: '🍔',
-    desc: '工业风美式餐厅，精酿啤酒种类繁多，适合下午茶和朋友聚餐。',
-    address: '黄浦区建国中路10号'
-  },
-  // ── 火锅 / 烧烤 ───────────────────────────────────────────
-  {
-    id: 'rst_010', name: '海底捞·浦东店', cuisine: '火锅',
-    tags: ['火锅','服务好','可预约','聚会'],
-    suitable_for: ['family','friends','senior'],
-    rating: 4.6, distance_km: 2.7,
-    price_per_person: 130,
-    healthy_score: 3,
-    kid_menu: true, wheelchair: true, reservable: true,
-    wait_base_min: 20,
-    open_now: true, icon: '🫕',
-    desc: '服务一流的火锅连锁，有儿童乐园和老人绿色通道，预约后等位时间大幅缩短。',
-    address: '浦东新区张杨路500号港汇恒隆广场'
-  },
-  {
-    id: 'rst_011', name: '巴奴毛肚火锅·徐汇店', cuisine: '火锅',
-    tags: ['火锅','毛肚','人气','浓汤底'],
-    suitable_for: ['friends'],
-    rating: 4.7, distance_km: 5.3,
-    price_per_person: 140,
-    healthy_score: 2,
-    kid_menu: false, wheelchair: false, reservable: true,
-    wait_base_min: 45,
-    open_now: true, icon: '🌶️',
-    desc: '以毛肚闻名的网红火锅，汤底浓郁，朋友聚会首选，周末需提前预约。',
-    address: '徐汇区天钥桥路388号'
-  },
-  // ── 咖啡 / 甜品（下午茶） ────────────────────────────────
-  {
-    id: 'rst_012', name: 'M Stand咖啡·新天地店', cuisine: '咖啡',
-    tags: ['咖啡','网红','甜品','下午茶','拍照'],
-    suitable_for: ['friends','couple'],
-    rating: 4.5, distance_km: 1.6,
-    price_per_person: 60,
-    healthy_score: 3,
-    kid_menu: false, wheelchair: false, reservable: false,
-    wait_base_min: 10,
-    open_now: true, icon: '☕',
-    desc: '上海最火国产精品咖啡，工业风设计超出片，燕麦拿铁和甜品都是招牌。',
-    address: '黄浦区太仓路181弄'
-  }
-];
-
-// ── 等位时间模拟（考虑周末峰值） ──────────────────────────────
-function simulateWaitTime(restaurant) {
-  const now = new Date();
-  const hour = now.getHours();
-  const isWeekend = [0, 6].includes(now.getDay());
-  const isPeakHour = (hour >= 11 && hour <= 13) || (hour >= 17 && hour <= 20);
-
-  let multiplier = 1.0;
-  if (isWeekend) multiplier *= 1.5;
-  if (isPeakHour) multiplier *= 1.4;
-
-  // 加入随机波动 ±20%
-  const jitter = 0.8 + Math.random() * 0.4;
-  const waitMin = Math.round(restaurant.wait_base_min * multiplier * jitter);
-
-  return {
-    wait_minutes: waitMin,
-    wait_text: waitMin === 0 ? '无需等位'
-      : waitMin < 15 ? `约${waitMin}分钟`
-      : waitMin < 30 ? `约${waitMin}分钟`
-      : `约${Math.round(waitMin / 5) * 5}分钟`,
-    status: waitMin === 0     ? 'no_wait'
-      : waitMin < 15          ? 'short_wait'
-      : waitMin < 45          ? 'medium_wait'
-      : 'long_wait'
-  };
-}
-
-// ── 评分权重 ──────────────────────────────────────────────────
-const RST_SCORE_WEIGHTS = {
-  suitability:   0.30,
-  rating:        0.25,
-  wait_penalty:  0.20,  // 等位越长扣分越多
-  healthy:       0.15,  // 健康需求时提权
-  distance:      0.10
-};
-
-async function searchRestaurants(intent, options = {}) {
-  const { limit = 5, maxWaitMin = 60, mockDelayMs = 200 } = options;
-  await new Promise(r => setTimeout(r, mockDelayMs));
-
-  try {
-    // 1. 基础过滤
-    let candidates = RESTAURANTS_DB.filter(r => {
-      if (!r.open_now) return false;
-      if (r.distance_km > intent.radius_km * 1.2) return false;
-      // 有孩子：必须 kid_menu 或评分够高的家庭餐厅
-      if (intent.children && intent.children.length > 0) {
-        if (!r.kid_menu && !r.suitable_for.includes('family')) return false;
-      }
-      // 轮椅/无障碍需求
-      if ((intent.special_needs || []).includes('无障碍') && !r.wheelchair) return false;
-      // 素食需求
-      if ((intent.special_needs || []).includes('素食') && r.cuisine !== '素食') return false;
-      return true;
-    });
-
-    // 2. 注入实时等位时间
-    candidates = candidates.map(r => ({
-      ...r,
-      _wait: simulateWaitTime(r)
-    }));
-
-    // 3. 过滤等位超时的（除非可预约）
-    candidates = candidates.filter(r =>
-      r._wait.wait_minutes <= maxWaitMin || r.reservable
-    );
-
-    // 4. 健康饮食场景：healthy_score 低的餐厅降权
-    const needHealthy = (intent.special_needs || []).includes('健康饮食');
-
-    // 5. 综合评分排序
-    candidates = candidates
-      .map(r => ({ ...r, _score: computeRstScore(r, intent, needHealthy) }))
-      .sort((a, b) => b._score - a._score);
-
-    // 6. 格式化
-    const restaurants = candidates.slice(0, limit).map(r => formatRestaurant(r, intent));
-
-    return {
-      ok: true, restaurants,
-      meta: {
-        total_candidates: candidates.length,
-        healthy_mode: needHealthy,
-        source: 'mock'
-      }
-    };
-  } catch (err) {
-    return {
-      ok: false, error: err.message,
-      restaurants: getFallbackRestaurants(intent),
-      meta: { source: 'fallback' }
-    };
-  }
-}
-
-// ── 餐厅评分计算 ──────────────────────────────────────────────
-function computeRstScore(r, intent, needHealthy) {
-  let score = 0;
-
-  // 1. 出行类型匹配
-  const suit = r.suitable_for.includes(intent.group_type) ? 1.0 : 0.4;
-  score += RST_SCORE_WEIGHTS.suitability * suit;
-
-  // 2. 用户评分
-  score += RST_SCORE_WEIGHTS.rating * (r.rating / 5.0);
-
-  // 3. 等位惩罚（等位越长分越低；可预约的有折扣）
-  const wait = r._wait.wait_minutes;
-  const waitPenalty = r.reservable
-    ? Math.max(0, 1 - wait / 120)   // 可预约的惩罚减半
-    : Math.max(0, 1 - wait / 60);
-  score += RST_SCORE_WEIGHTS.wait_penalty * waitPenalty;
-
-  // 4. 健康度（有减肥/健康需求时提权 × 2）
-  const healthWeight = needHealthy
-    ? RST_SCORE_WEIGHTS.healthy * 2
-    : RST_SCORE_WEIGHTS.healthy;
-  score += healthWeight * (r.healthy_score / 5.0);
-
-  // 5. 距离
-  const distScore = Math.max(0, 1 - r.distance_km / (intent.radius_km * 1.2));
-  score += RST_SCORE_WEIGHTS.distance * distScore;
-
-  return score;
-}
-
-// ── 格式化输出 ────────────────────────────────────────────────
-function formatRestaurant(raw, intent) {
-  const wait = raw._wait;
-
-  // 建议就餐时间（出发时间 + 2小时活动 + 30分钟缓冲）
-  const [sh, sm] = (intent.start_time || '14:00').split(':').map(Number);
-  const dinnerMin = sh * 60 + sm + 150; // 默认活动后2.5小时用餐
-  const dinnerTime = minutesToTime(dinnerMin);
-  const dinnerEnd  = minutesToTime(dinnerMin + 90);
-
-  // 状态 badge
-  const badge = buildRstBadge(wait, raw.reservable);
-
-  return {
-    id:               raw.id,
-    name:             raw.name,
-    cuisine:          raw.cuisine,
-    icon:             raw.icon,
-    tags:             raw.tags.slice(0, 4),
-    desc:             raw.desc,
-    address:          raw.address,
-    rating:           raw.rating,
-    distance_km:      raw.distance_km,
-    distance_text:    `${raw.distance_km}km`,
-    price_per_person: raw.price_per_person,
-    price_text:       `¥${raw.price_per_person}/人`,
-    healthy_score:    raw.healthy_score,
-    kid_menu:         raw.kid_menu,
-    wheelchair:       raw.wheelchair,
-    reservable:       raw.reservable,
-    wait_minutes:     wait.wait_minutes,
-    wait_text:        wait.wait_text,
-    wait_status:      wait.status,
-    time_range:       `${dinnerTime} - ${dinnerEnd}`,
-    arrival_time:     dinnerTime,
-    badge,
-    score:            Math.round((raw._score || 0) * 100),
-    category:         'restaurant'
-  };
-}
-
-function buildRstBadge(wait, reservable) {
-  if (wait.status === 'no_wait')    return '✅ 无需等位';
-  if (wait.status === 'short_wait') return `⏱️ ${wait.wait_text}`;
-  if (reservable)                   return `📅 可预约·${wait.wait_text}`;
-  if (wait.status === 'long_wait')  return `⚠️ 等位${wait.wait_text}`;
-  return `🕐 ${wait.wait_text}`;
-}
-
-
-
-function getFallbackRestaurants(intent) {
-  const pool = RESTAURANTS_DB
-    .filter(r => r.suitable_for.includes(intent.group_type))
-    .slice(0, 3);
-  return pool.map(r => formatRestaurant({ ...r, _wait: { wait_minutes: 0, wait_text: '无需等位', status: 'no_wait' }, _score: 0.5 }, intent));
-}
-
-
-
-// ── MOCK_EXEC (Tool 5 placeholder) ──────────────────────────
-const MOCK_EXEC = [
-  { name: "餐厅预约", icon: "🍽️", status: "ok",      label: "预约成功" },
-  { name: "活动门票购买", icon: "🎫", status: "ok",   label: "购票成功" },
-  { name: "配送到餐厅", icon: "💐",  status: "wait",  label: "配送中"  },
-  { name: "计划发送给同行者", icon: "📱", status: "ok", label: "已发送" }
-];
-
-
-// ══════════════════════════════════════════════════════════════
-// Tool 4: plan_itinerary
-// ══════════════════════════════════════════════════════════════
-
-/**
- * Tool 4: plan_itinerary
- * 职责：activities + restaurants 候选 → AI 组合成带时间轴的三段行程
- * 返回：{ ok, plan: ItineraryPlan, source: 'zhipu'|'deepseek'|'longcat'|'rule' }
- */
-
-const PLAN_GLM_URL      = 'https://open.bigmodel.cn/api/paas/v4/chat/completions';
-const PLAN_DEEPSEEK_URL = 'https://api.deepseek.com/chat/completions';
-const PLAN_LONGCAT_URL  = 'https://api.longcat.ai/v1/chat/completions';
-const PLAN_GLM_MODEL      = 'glm-4-flash';
-const PLAN_DEEPSEEK_MODEL = 'deepseek-chat';
-const PLAN_LONGCAT_MODEL  = 'longcat-plus';
-
-// ── System Prompt ─────────────────────────────────────────────
-function buildPlanSystemPrompt() {
-  return '你是美团本地出行规划助手的行程编排模块。\n' +
-    '你会收到：用户出行意图(intent) + 活动候选列表(activities) + 餐厅候选列表(restaurants)。\n' +
-    '从候选中挑选最合适的组合，编排"活动→餐厅→活动"三段行程。\n\n' +
-    '只输出合法 JSON，不要任何解释或 markdown 代码块，严格按以下结构：\n' +
-    '{\n' +
-    '  "stops": [\n' +
-    '    {"order":1,"id":"<候选id>","name":"<名称>","category":"activity","arrival_time":"HH:MM","end_time":"HH:MM","reason":"<选择理由15字内>"},\n' +
-    '    {"order":2,"id":"<候选id>","name":"<名称>","category":"restaurant","arrival_time":"HH:MM","end_time":"HH:MM","reason":"<选择理由15字内>"},\n' +
-    '    {"order":3,"id":"<候选id>","name":"<名称>","category":"activity","arrival_time":"HH:MM","end_time":"HH:MM","reason":"<选择理由15字内>"}\n' +
-    '  ],\n' +
-    '  "summary": "<20-40字口语化行程摘要>",\n' +
-    '  "total_cost_estimate": <人均费用整数>,\n' +
-    '  "tips": ["<提示1>","<提示2>"]\n' +
-    '}\n\n' +
-    '编排规则：\n' +
-    '1. 第1站和第3站必须从activities中选，第2站必须从restaurants中选\n' +
-    '2. 第2站arrival_time = 第1站end_time + 15分钟缓冲\n' +
-    '3. 第3站arrival_time = 第2站end_time + 15分钟缓冲\n' +
-    '4. 有孩子时优先选kid_menu=true餐厅和亲子活动\n' +
-    '5. 有健康饮食需求时优先选healthy_score>=4餐厅\n' +
-    '6. 控制总时长在intent.duration_hours小时以内\n' +
-    '7. total_cost_estimate = 餐厅price_per_person * adults + 活动ticket_price * adults';
-}
-
-// ── 构建精简上下文（节省 token） ──────────────────────────────
-function buildContext(intent, activities, restaurants) {
-  const intentSlim = {
-    group_type: intent.group_type, adults: intent.adults,
-    children: intent.children, start_time: intent.start_time,
-    duration_hours: intent.duration_hours,
-    special_needs: intent.special_needs, preferences: intent.preferences
-  };
-  const actSlim = activities.slice(0, 6).map(function(a) {
-    return { id: a.id, name: a.name, type: a.type,
-             duration_min: a.duration_min, rating: a.rating,
-             ticket_price: a.ticket_price, tags: a.tags.slice(0, 3) };
-  });
-  const rstSlim = restaurants.slice(0, 5).map(function(r) {
-    return { id: r.id, name: r.name, cuisine: r.cuisine,
-             price_per_person: r.price_per_person, healthy_score: r.healthy_score,
-             kid_menu: r.kid_menu, wait_text: r.wait_text,
-             reservable: r.reservable, rating: r.rating };
-  });
-  return JSON.stringify({ intent: intentSlim, activities: actSlim, restaurants: rstSlim });
-}
-
-// ── 主函数 ────────────────────────────────────────────────────
-async function planItinerary(intent, activities, restaurants, options) {
-  options = options || {};
-  var glmApiKey      = options.glmApiKey      || '';
-  var deepseekApiKey = options.deepseekApiKey  || '';
-  var longcatApiKey  = options.longcatApiKey   || '';
-  var onStream       = options.onStream        || null;
-
-  var context = buildContext(intent, activities, restaurants);
-  var systemPrompt = buildPlanSystemPrompt();
-
-  // 构建尝试链（有 key 的才加入）
-  var providers = [];
-  if (glmApiKey)      providers.push({ name: 'zhipu',    fn: function() { return callAI(PLAN_GLM_URL,      PLAN_GLM_MODEL,      glmApiKey,      systemPrompt, context, onStream); } });
-  if (deepseekApiKey) providers.push({ name: 'deepseek', fn: function() { return callAI(PLAN_DEEPSEEK_URL, PLAN_DEEPSEEK_MODEL, deepseekApiKey, systemPrompt, context, null);     } });
-  if (longcatApiKey)  providers.push({ name: 'longcat',  fn: function() { return callAI(PLAN_LONGCAT_URL,  PLAN_LONGCAT_MODEL,  longcatApiKey,  systemPrompt, context, null);     } });
-
-  var lastError = null;
-
-  for (var i = 0; i < providers.length; i++) {
-    var provider = providers[i];
-    try {
-      var raw  = await provider.fn();
-      var plan = parsePlanJSON(raw);
-      validatePlan(plan, activities, restaurants);
-      var enriched = enrichPlan(plan, activities, restaurants);
-      return { ok: true, plan: enriched, source: provider.name };
-    } catch (err) {
-      console.warn('[plan_itinerary] ' + provider.name + ' 失败:', err.message);
-      lastError = err;
-    }
-  }
-
-  // 全部 AI 失败 → 规则降级，仍返回可用结果
-  console.warn('[plan_itinerary] 全部 AI 失败，规则降级');
-  var fallback = ruleFallbackPlan(intent, activities, restaurants);
-  return { ok: false, error: (lastError && lastError.message) || '未知错误', plan: fallback, source: 'rule' };
-}
-
-// ── 统一 AI 调用（支持 GLM 流式 + 普通） ─────────────────────
-async function callAI(url, model, apiKey, systemPrompt, context, onStream) {
-  var useStream = typeof onStream === 'function';
-  var res = await fetch(url, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': 'Bearer ' + apiKey
-    },
-    body: JSON.stringify({
-      model: model,
-      max_tokens: 800,
-      temperature: 0.4,
-      stream: useStream,
-      messages: [
-        { role: 'system', content: systemPrompt },
-        { role: 'user',   content: '请根据以下数据编排行程：\n' + context }
-      ]
-    }),
-    signal: AbortSignal.timeout(15000)
-  });
-
-  if (!res.ok) {
-    var body = await res.text();
-    throw new Error(url.includes('bigmodel') ? 'GLM' : url.includes('deepseek') ? 'DeepSeek' : 'LongCat' +
-      ' HTTP ' + res.status + ': ' + body.slice(0, 120));
-  }
-
-  if (useStream) return await readStream(res, onStream);
-
-  var data = await res.json();
-  return (data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content) || '';
-}
-
-// ── SSE 流式读取 ──────────────────────────────────────────────
-async function readStream(res, onStream) {
-  var reader  = res.body.getReader();
-  var decoder = new TextDecoder('utf-8');
-  var full    = '';
-
-  while (true) {
-    var result = await reader.read();
-    if (result.done) break;
-    var chunk = decoder.decode(result.value, { stream: true });
-    var lines = chunk.split('\n');
-    for (var j = 0; j < lines.length; j++) {
-      var line = lines[j];
-      if (!line.startsWith('data: ')) continue;
-      var data = line.slice(6).trim();
-      if (data === '[DONE]') break;
-      try {
-        var obj   = JSON.parse(data);
-        var piece = (obj.choices && obj.choices[0] && obj.choices[0].delta && obj.choices[0].delta.content) || '';
-        if (piece) { full += piece; onStream(piece); }
-      } catch (_) {}
-    }
-  }
-  return full;
-}
-
-// ── JSON 解析（健壮版） ────────────────────────────────────────
-function parsePlanJSON(raw) {
-  if (!raw || typeof raw !== 'string') throw new Error('空响应');
-  var cleaned = raw
-    .replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/```\s*$/i, '').trim();
-  var start = cleaned.indexOf('{');
-  var end   = cleaned.lastIndexOf('}');
-  if (start === -1 || end === -1) throw new Error('响应中无 JSON 对象');
-  cleaned = cleaned.slice(start, end + 1);
-  var obj = JSON.parse(cleaned);
-  if (!Array.isArray(obj.stops) || obj.stops.length === 0) throw new Error('stops 字段缺失');
-  return obj;
-}
-
-// ── 校验 AI 选的 id 是否在候选池里 ───────────────────────────
-function validatePlan(plan, activities, restaurants) {
-  var actIds = {};
-  var rstIds = {};
-  activities.forEach(function(a) { actIds[a.id] = true; });
-  restaurants.forEach(function(r) { rstIds[r.id] = true; });
-
-  plan.stops.forEach(function(stop) {
-    if (stop.category === 'activity'   && !actIds[stop.id])
-      throw new Error('无效活动 id: ' + stop.id);
-    if (stop.category === 'restaurant' && !rstIds[stop.id])
-      throw new Error('无效餐厅 id: ' + stop.id);
-    if (stop.arrival_time && !/^\d{2}:\d{2}$/.test(stop.arrival_time))
-      throw new Error('arrival_time 格式错误: ' + stop.arrival_time);
-  });
-}
-
-// ── 数据增强（把精简 stop 合并回完整字段） ─────────────────────
-function enrichPlan(plan, activities, restaurants) {
-  var actMap = {};
-  var rstMap = {};
-  activities.forEach(function(a)  { actMap[a.id] = a; });
-  restaurants.forEach(function(r) { rstMap[r.id] = r; });
-
-  var enrichedStops = plan.stops.map(function(stop) {
-    var base = stop.category === 'activity' ? actMap[stop.id] : rstMap[stop.id];
-    if (!base) return stop;
-    var merged = Object.assign({}, base, {
-      order:        stop.order,
-      arrival_time: stop.arrival_time,
-      end_time:     stop.end_time || '',
-      time_range:   (stop.arrival_time || '') + ' - ' + (stop.end_time || ''),
-      reason:       stop.reason || ''
-    });
-    return merged;
-  });
-
-  return {
-    stops:               enrichedStops,
-    summary:             plan.summary             || '精心为您安排的出行方案',
-    total_cost_estimate: plan.total_cost_estimate || 0,
-    duration_hours:      plan.duration_hours      || 5,
-    tips:                Array.isArray(plan.tips) ? plan.tips : []
-  };
-}
-
-// ── 规则降级 ──────────────────────────────────────────────────
-function ruleFallbackPlan(intent, activities, restaurants) {
-  var act1 = activities[0];
-  var rst  = restaurants[0];
-  var act2 = activities[1] || activities[0];
-
-  if (!act1 || !rst) {
-    return { stops: [], summary: '候选数据不足，请重试', total_cost_estimate: 0, tips: [], duration_hours: 5 };
-  }
-
-  var parts = (intent.start_time || '14:00').split(':');
-  var cursor = parseInt(parts[0]) * 60 + parseInt(parts[1]);
-
-  function pad(total) {
-    return String(Math.floor(total / 60) % 24).padStart(2, '0') + ':' +
-           String(total % 60).padStart(2, '0');
-  }
-
-  var s1Start = pad(cursor);
-  cursor += (act1.duration_min || 90);
-  var s1End = pad(cursor);
-  cursor += 15;
-  var s2Start = pad(cursor);
-  cursor += 90;
-  var s2End = pad(cursor);
-  cursor += 15;
-  var s3Start = pad(cursor);
-  cursor += (act2.duration_min || 60);
-  var s3End = pad(cursor);
-
-  var stops = [
-    Object.assign({}, act1, { order: 1, arrival_time: s1Start, end_time: s1End, time_range: s1Start + ' - ' + s1End, reason: '综合评分最高' }),
-    Object.assign({}, rst,  { order: 2, arrival_time: s2Start, end_time: s2End, time_range: s2Start + ' - ' + s2End, reason: '等位时间最短' }),
-    Object.assign({}, act2, { order: 3, arrival_time: s3Start, end_time: s3End, time_range: s3Start + ' - ' + s3End, reason: '饭后休闲好去处' })
-  ];
-
-  var costEst = ((rst.price_per_person || 80) + (act1.ticket_price || 0)) * (intent.adults || 2);
-
-  return {
-    stops: stops,
-    summary: intent.start_time + '出发，先去' + act1.name + '，再去' + rst.name + '用餐，最后' + act2.name + '。',
-    total_cost_estimate: costEst,
-    tips: ['建议提前查看营业时间', '出发前确认餐厅是否需要预约'],
-    duration_hours: intent.duration_hours || 5
-  };
-}
-
-
-// ══════════════════════════════════════════════════════════════
-// Tool 5: execute_booking
-// ══════════════════════════════════════════════════════════════
-
-/**
- * Tool 5: execute_booking
- * ─────────────────────────────────────────────────────────────
- * 职责：按行程逐项执行预约/购票/配送动作，
- *       通过 onProgress 回调实时推送每步进度给 UI。
- *
- * 调用：
- *   const result = await executeBooking(planItems, intent, { onProgress });
- *
- * 返回：
- *   { ok: true,  actions: ActionResult[], summary: string }
- *   { ok: false, actions: ActionResult[], summary: string, errors: string[] }
- *
- * ActionResult：
- *   { id, label, icon, status: 'ok'|'pending'|'failed', detail, duration_ms }
- * ─────────────────────────────────────────────────────────────
- */
-
-'use strict';
-
-// ── 动作类型定义 ──────────────────────────────────────────────
-var ACTION_TYPES = {
-  RESERVE_RESTAURANT: 'reserve_restaurant',
-  BUY_TICKET:         'buy_ticket',
-  CHECK_AVAILABILITY: 'check_availability',
-  ORDER_EXTRAS:       'order_extras',
-  SEND_PLAN:          'send_plan'
-};
-
-// ── 动作模板库（按 category + 场景生成动作列表）──────────────
-function buildActions(planItems, intent) {
-  var actions = [];
-  var idCounter = 1;
-
-  function makeId() { return 'act_' + (idCounter++); }
-
-  planItems.forEach(function(item) {
-    if (item.category === 'restaurant') {
-      // ① 餐厅预约（有 reservable 则先预约，否则叫号）
-      if (item.reservable) {
-        actions.push({
-          id:       makeId(),
-          type:     ACTION_TYPES.RESERVE_RESTAURANT,
-          icon:     '🍽️',
-          label:    item.name + ' — ' + intent.adults + '人位预约',
-          detail:   '预约 ' + (item.arrival_time || '') + ' 到店，' + intent.adults + ' 位，靠窗优先',
-          place_id: item.id,
-          delay_ms: 600,
-          retry:    1
-        });
-      } else {
-        actions.push({
-          id:       makeId(),
-          type:     ACTION_TYPES.CHECK_AVAILABILITY,
-          icon:     '🔢',
-          label:    item.name + ' — 查询当前等位',
-          detail:   '实时查询等候桌数和预计等位时长',
-          place_id: item.id,
-          delay_ms: 300,
-          retry:    0
-        });
-      }
-    }
-
-    if (item.category === 'activity') {
-      if (item.ticket_price > 0) {
-        // ② 购票（收费景点）
-        actions.push({
-          id:       makeId(),
-          type:     ACTION_TYPES.BUY_TICKET,
-          icon:     '🎫',
-          label:    item.name + ' — 门票 ¥' + item.ticket_price + '/张 × ' + (intent.adults + (intent.children ? intent.children.length : 0)),
-          detail:   '成人票 ¥' + item.ticket_price + '/张，电子票即时出票',
-          place_id: item.id,
-          delay_ms: 500,
-          retry:    1
-        });
-      } else {
-        // ③ 免费景点，仅确认开放状态
-        actions.push({
-          id:       makeId(),
-          type:     ACTION_TYPES.CHECK_AVAILABILITY,
-          icon:     '✅',
-          label:    item.name + ' — 确认今日开放',
-          detail:   '免费入场，确认当日开放时间及人流情况',
-          place_id: item.id,
-          delay_ms: 200,
-          retry:    0
-        });
-      }
-    }
-  });
-
-  // ④ 特殊需求：健康饮食 → 询问轻食/低卡推荐
-  if (intent.special_needs && intent.special_needs.includes('健康饮食')) {
-    var rstItem = planItems.find(function(p) { return p.category === 'restaurant'; });
-    if (rstItem) {
-      actions.push({
-        id:       makeId(),
-        type:     ACTION_TYPES.ORDER_EXTRAS,
-        icon:     '🥗',
-        label:    rstItem.name + ' — 备注健康饮食需求',
-        detail:   '向餐厅备注：少油少盐，优先推荐轻食菜品',
-        place_id: rstItem.id,
-        delay_ms: 300,
-        retry:    0
-      });
-    }
-  }
-
-  // ⑤ 有孩子 → 询问儿童椅/儿童餐
-  if (intent.children && intent.children.length > 0) {
-    var rstItem2 = planItems.find(function(p) { return p.category === 'restaurant'; });
-    if (rstItem2 && rstItem2.kid_menu) {
-      actions.push({
-        id:       makeId(),
-        type:     ACTION_TYPES.ORDER_EXTRAS,
-        icon:     '👶',
-        label:    rstItem2.name + ' — 预订儿童椅 × ' + intent.children.length,
-        detail:   '为 ' + intent.children.length + ' 位小朋友预留儿童椅和儿童餐具',
-        place_id: rstItem2.id,
-        delay_ms: 250,
-        retry:    0
-      });
-    }
-  }
-
-  // ⑥ 最后一步：发送行程给同行者
-  actions.push({
-    id:       makeId(),
-    type:     ACTION_TYPES.SEND_PLAN,
-    icon:     '📱',
-    label:    '行程计划 — 发送给同行者',
-    detail:   '生成出行摘要，一键发送给同行的家人/朋友',
-    place_id: null,
-    delay_ms: 400,
-    retry:    0
-  });
-
-  return actions;
-}
-
-// ── 主函数 ────────────────────────────────────────────────────
-async function executeBooking(planItems, intent, options) {
-  options = options || {};
-  var onProgress = typeof options.onProgress === 'function' ? options.onProgress : null;
-  var mockMode   = options.mockMode !== false; // 默认 mock
-
-  var actions    = buildActions(planItems, intent);
-  var results    = [];
-  var hasFailure = false;
-
-  for (var i = 0; i < actions.length; i++) {
-    var action = actions[i];
-
-    // 推送"执行中"状态
-    if (onProgress) {
-      onProgress({
-        action:  action,
-        status:  'running',
-        index:   i,
-        total:   actions.length
-      });
-    }
-
-    var result = await runAction(action, mockMode);
-
-    // 失败时最多重试一次
-    if (result.status === 'failed' && action.retry > 0) {
-      await delay_ms_fn(300);
-      result = await runAction(action, mockMode);
-      result.retried = true;
-    }
-
-    results.push(result);
-    if (result.status === 'failed') hasFailure = true;
-
-    // 推送最终状态
-    if (onProgress) {
-      onProgress({
-        action:  action,
-        result:  result,
-        status:  result.status,
-        index:   i,
-        total:   actions.length
-      });
-    }
-
-    // 每步之间短暂停顿，让用户看清进度
-    if (i < actions.length - 1) await delay_ms_fn(120);
-  }
-
-  var summary = buildExecutionSummary(results, planItems, intent);
-
-  return {
-    ok:      !hasFailure,
-    actions: results,
-    summary: summary,
-    errors:  results.filter(function(r) { return r.status === 'failed'; })
-                    .map(function(r) { return r.label + '：' + r.error; })
-  };
-}
-
-// ── 单个动作执行 ──────────────────────────────────────────────
-async function runAction(action, mockMode) {
-  var t0 = Date.now();
-
-  // Mock 模式：模拟延迟 + 随机失败率（5%）
-  await delay_ms_fn(action.delay_ms);
-
-  var failed = mockMode && Math.random() < 0.05; // 5% 失败率
-
-  if (failed) {
-    return {
-      id:          action.id,
-      type:        action.type,
-      icon:        action.icon,
-      label:       action.label,
-      detail:      action.detail,
-      status:      'failed',
-      error:       '网络超时，请稍后手动确认',
-      duration_ms: Date.now() - t0
-    };
-  }
-
-  // Mock 成功：根据动作类型生成不同的成功详情
-  var successDetail = buildSuccessDetail(action);
-
-  return {
-    id:          action.id,
-    type:        action.type,
-    icon:        action.icon,
-    label:       action.label,
-    detail:      successDetail,
-    status:      'ok',
-    duration_ms: Date.now() - t0
-  };
-}
-
-// ── 成功详情文案 ──────────────────────────────────────────────
-function buildSuccessDetail(action) {
-  switch (action.type) {
-    case ACTION_TYPES.RESERVE_RESTAURANT:
-      return '预约成功 ✓ 订单号 MT' + Math.random().toString(36).slice(2,8).toUpperCase();
-    case ACTION_TYPES.BUY_TICKET:
-      return '购票成功 ✓ 电子票已发至手机，凭码入场';
-    case ACTION_TYPES.CHECK_AVAILABILITY:
-      var wait = Math.floor(Math.random() * 20);
-      return wait === 0 ? '当前无需等候，随时可入场 ✓' : '当前等候约 ' + wait + ' 分钟';
-    case ACTION_TYPES.ORDER_EXTRAS:
-      return '备注已提交 ✓ 餐厅已确认收到';
-    case ACTION_TYPES.SEND_PLAN:
-      return '已发送给同行者 ✓ 他们将收到出行提醒';
-    default:
-      return '操作成功 ✓';
-  }
-}
-
-// ── 执行摘要文案 ──────────────────────────────────────────────
-function buildExecutionSummary(results, planItems, intent) {
-  var okCount   = results.filter(function(r) { return r.status === 'ok'; }).length;
-  var failCount = results.filter(function(r) { return r.status === 'failed'; }).length;
-
-  var firstStop = planItems[0];
-  var startTime = firstStop ? firstStop.arrival_time : '14:00';
-
-  var groupMap  = { family: '家人', friends: '朋友们', couple: '另一半', senior: '长辈' };
-  var groupWord = (intent && groupMap[intent.group_type]) || '大家';
-
-  if (failCount === 0) {
-    return '🎉 全部搞定！' + okCount + '项预约均已完成。' +
-           startTime + ' 和' + groupWord + '出发，祝玩得开心！';
-  }
-  return '⚠️ ' + okCount + '项成功，' + failCount + '项需手动确认。' +
-         '行程不受影响，' + startTime + ' 准时出发！';
-}
-
-// ── 工具 ──────────────────────────────────────────────────────
-function delay_ms_fn(ms) {
-  return new Promise(function(resolve) { setTimeout(resolve, ms); });
-}
-
-// ── 导出（双环境兼容）────────────────────────────────────────
-
-
-// ══════════════════════════════════════════════════════════════
-// Tool 6: share_plan
-// ══════════════════════════════════════════════════════════════
-
-/**
- * Tool 6: share_plan
- * ─────────────────────────────────────────────────────────────
- * 职责：把已执行的行程生成多种格式的分享文案
- *
- * 调用：
- *   const share = sharePlan(planItems, intent, bookingResult);
- *
- * 返回：
- *   {
- *     wechat:  string,   // 微信分享格式（带 emoji，换行清晰）
- *     plain:   string,   // TTS 朗读格式（无 emoji，适合语音播报）
- *     compact: string,   // 单行紧凑格式（适合短消息/短链接）
- *     title:   string    // 标题行
- *   }
- * ─────────────────────────────────────────────────────────────
- */
-
-'use strict';
-
-function sharePlan(planItems, intent, bookingResult) {
-  var groupMap  = { family: '家人', friends: '朋友们', couple: '另一半', senior: '长辈' };
-  var groupWord = (intent && groupMap[intent.group_type]) || '大家';
-  var adults    = (intent && intent.adults) || 2;
-  var children  = (intent && intent.children && intent.children.length) || 0;
-  var headcount = adults + children;
-
-  // 计算行程时间跨度
-  var firstStop = planItems[0];
-  var lastStop  = planItems[planItems.length - 1];
-  var startTime = firstStop ? firstStop.arrival_time : '14:00';
-  var endTime   = lastStop
-    ? calcEndTime(lastStop.arrival_time, lastStop.duration_min || 60)
-    : '20:00';
-
-  // 费用估算（来自 bookingResult 或累加）
-  var costNote = '';
-  if (bookingResult && bookingResult.actions) {
-    // 从行程本身算：餐厅 price × 人数 + 门票
-    var totalCost = planItems.reduce(function(sum, item) {
-      if (item.category === 'restaurant') return sum + (item.price_per_person || 0) * adults;
-      if (item.category === 'activity')   return sum + (item.ticket_price || 0) * headcount;
-      return sum;
-    }, 0);
-    if (totalCost > 0) costNote = '💰 人均约 ¥' + Math.round(totalCost / headcount);
-  }
-
-  // ── 微信格式 ────────────────────────────────────────────────
-  var wechatLines = [
-    '📍 今日出行计划 | ' + headcount + '人 | ' + startTime + '-' + endTime,
-    ''
-  ];
-  planItems.forEach(function(item, i) {
-    var stepIcon = item.category === 'restaurant' ? '🍽️' : (i === 0 ? '🎯' : '🎪');
-    var stepLine = stepIcon + ' ' + item.arrival_time + '  ' + item.name;
-    if (item.category === 'restaurant' && item.wait_text && item.wait_text !== '无需等位') {
-      stepLine += '（' + item.wait_text + '）';
-    }
-    if (item.category === 'activity' && item.ticket_price === 0) {
-      stepLine += '（免费）';
-    }
-    wechatLines.push(stepLine);
-    if (item.desc) {
-      // 截取描述前 20 字
-      var shortDesc = item.desc.length > 20 ? item.desc.slice(0, 20) + '…' : item.desc;
-      wechatLines.push('   ' + shortDesc);
-    }
-    wechatLines.push('');
-  });
-
-  if (costNote) wechatLines.push(costNote);
-  wechatLines.push('✨ 美团出行规划 · 祝玩得开心！');
-
-  // ── TTS 朗读格式 ──────────────────────────────────────────
-  var plainParts = [
-    '行程安排好了，' + headcount + '人出行，' + startTime + '出发。'
-  ];
-  planItems.forEach(function(item, i) {
-    var order = ['第一站', '第二站', '第三站', '第四站'][i] || ('第' + (i + 1) + '站');
-    plainParts.push(order + '是' + item.name + '，' + item.arrival_time + '到达，');
-    if (item.category === 'restaurant') {
-      plainParts.push('在这里' + (item.duration_min ? Math.round(item.duration_min / 60 * 10) / 10 : 1) + '小时用餐。');
-    } else {
-      plainParts.push('游览约' + (item.duration_min ? Math.round(item.duration_min / 60 * 10) / 10 : 1) + '小时。');
-    }
-  });
-  plainParts.push('预计' + endTime + '结束，祝' + groupWord + '玩得开心！');
-
-  // ── 紧凑单行格式 ───────────────────────────────────────────
-  var stops = planItems.map(function(item) {
-    return item.arrival_time + ' ' + item.name;
-  }).join(' → ');
-  var compact = '今日行程：' + stops + '（' + headcount + '人）';
-
-  // ── 标题 ──────────────────────────────────────────────────
-  var dateStr = getTodayStr();
-  var title   = dateStr + ' 和' + groupWord + '的行程';
-
-  return {
-    wechat:  wechatLines.join('\n'),
-    plain:   plainParts.join(''),
-    compact: compact,
-    title:   title
-  };
-}
-
-// ── 工具函数 ─────────────────────────────────────────────────
-function calcEndTime(arrivalTime, durationMin) {
-  var parts = (arrivalTime || '14:00').split(':');
-  var totalMin = parseInt(parts[0], 10) * 60 + parseInt(parts[1] || '0', 10) + durationMin;
-  var h = Math.floor(totalMin / 60) % 24;
-  var m = totalMin % 60;
-  return (h < 10 ? '0' : '') + h + ':' + (m < 10 ? '0' : '') + m;
-}
-
-function getTodayStr() {
-  var now = new Date();
-  var month = now.getMonth() + 1;
-  var day   = now.getDate();
-  var weeks = ['日','一','二','三','四','五','六'];
-  return month + '月' + day + '日（周' + weeks[now.getDay()] + '）';
-}
-
-// ── 导出 ──────────────────────────────────────────────────────
-
-
 // ── API Key 配置（直接从全局变量读取） ──────────────────────────
 const API_CONFIG = {
   glmApiKey:      window.ZHIPU_API_KEY      || '',
@@ -2522,6 +965,8 @@ let clarifyRound = 0;
 let lastUserText = '';
 let lastShareData = null;   // Tool 6 最新分享数据
 let currentLocation = { province: '上海', city: '上海', district: '浦东', lat: 31.2304, lng: 121.4737 };
+// Global itinerary timeline storage (array of {name, address, lat, lng})
+// `itineraryTimeline` 已移除；行程資料由 `currentPlan.items` 與 `updateTimelineFromPlan` 管理。
 
 // ── UI 辅助函数 ──
 function showToast(msg){
@@ -2538,13 +983,16 @@ function showToast(msg){
   setTimeout(()=>{ toast.remove(); }, 1500);
 }
 
+let isModifying = false;
+
 function modifyPlan(){
-  // 重新编辑行程 - 清除当前方案并回到输入
-  currentPlan = null;
-  lastPlanText = '';
-  document.getElementById('plan-display-modal').classList.remove('open');
-  document.getElementById('user-input').focus();
-  showToast('已清除行程方案，请重新输入');
+  isModifying = true;
+  addMessage('ai', '请问您认为行程的哪些地方需要进行修改？');
+  const input = document.getElementById('main-input');
+  if (input) {
+    input.placeholder = '请输入您的修改意见，例如：不看电影，换成去武康路逛街...';
+    input.focus();
+  }
 }
 
 // ── CLOCK ──
@@ -2570,16 +1018,29 @@ function setFontSize(size, btn) {
 }
 
 // ── SENIOR MODE ──
-function toggleSeniorMode() {
-  document.body.classList.toggle('senior-mode');
-  const isOn = document.body.classList.contains('senior-mode');
-  document.getElementById('senior-btn').classList.toggle('active', isOn);
+function toggleFriendlyMode() {
+  document.body.classList.toggle('friendly');
+  const isOn = document.body.classList.contains('friendly');
+  const btn = document.getElementById('friendly-btn');
+  if (btn) btn.classList.toggle('active', isOn);
+  try { localStorage.setItem('eg_friendly', isOn ? '1' : '0'); } catch(e){}
   if (isOn) {
     document.querySelector('.a11y-banner').style.display = 'flex';
-    speakText('老年人模式已开启，字体已放大，操作更方便。');
+    speakText('友好模式已开启，字体放大，操作更清晰。您可以点击任意对话卡片来朗读内容。请说出您今天想去哪里。');
+    setTimeout(()=>{
+      addMessage('ai', '💡 <strong>提示：</strong>友好模式已开启，点击任意对话卡片即可语音朗读该内容。');
+    }, 400);
+    
   } else {
     document.querySelector('.a11y-banner').style.display = 'none';
+    try { window.speechSynthesis && window.speechSynthesis.cancel(); } catch(e){}
   }
+}
+
+// 恢復友好模式狀態
+function restoreFriendlyMode(){
+  try{ const v = localStorage.getItem('eg_friendly'); if (v === '1') { document.body.classList.add('friendly'); document.getElementById('friendly-btn').classList.add('active'); document.querySelector('.a11y-banner').style.display='flex'; } }
+  catch(e){}
 }
 
 // ── MIC ──
@@ -2647,43 +1108,70 @@ async function sendMessage() {
   const text = input.value.trim();
   if (!text) return;
 
-  // 追问模式：把追问回答拼接到上次输入
-  const fullText = clarifyRound > 0 ? `${lastUserText}。补充：${text}` : text;
-
   addMessage('user', text);
   input.value = '';
   document.getElementById('send-btn').disabled = true;
   showTyping();
 
-  // ── Tool 1: extract_intent ──
-  const result = await extractIntent(fullText, {
-    glmApiKey:      API_CONFIG.glmApiKey,
-    deepseekApiKey: API_CONFIG.deepseekApiKey,
-    round:          clarifyRound
-  });
+  let intent;
+  let resultSource = 'ai';
 
-  removeTyping();
+  if (isModifying && currentPlan && currentPlan.intent) {
+    // 智能修改流：使用AI更新意图 JSON
+    const updatePrompt = `原出行意图 JSON: ${JSON.stringify(currentPlan.intent)}
+用户提出的修改意见: "${text}"
 
-  // 需要追问
-  if (!result.ok) {
-    clarifyRound = result.round + 1;
-    lastUserText = fullText;
-    addMessage('ai', result.clarify);
-    document.getElementById('send-btn').disabled = false;
-    return;
+请根据用户的修改意见对原意图 JSON 进行相应字段的调整与修改（例如，如果用户说“想去武康路”，请在 preferences 中加入“citywalk”或相关标签，并调整相关属性）。只输出修改后的完整 JSON 对象，不要包含 markdown 代码块（如 \`\`\`json）或任何额外的说明解释。`;
+    let updatedRaw = '';
+    try {
+      updatedRaw = await callGLM(updatePrompt, API_CONFIG.glmApiKey);
+    } catch(e) {
+      try {
+        updatedRaw = await callDeepSeek(updatePrompt, API_CONFIG.deepseekApiKey);
+      } catch(err) {
+        updatedRaw = JSON.stringify(currentPlan.intent);
+      }
+    }
+    removeTyping();
+    try {
+      intent = parseIntentJSON(updatedRaw);
+    } catch(e) {
+      intent = currentPlan.intent;
+    }
+    isModifying = false;
+    input.placeholder = '例如：想和老婆孩子（孩子5岁）下午出去玩，别太远，孩子喜欢玩水，大人想吃个好的…';
+  } else {
+    // 追问模式：把追问回答拼接到上次输入
+    const fullText = clarifyRound > 0 ? `${lastUserText}。补充：${text}` : text;
+
+    // ── Tool 1: extract_intent ──
+    const result = await extractIntent(fullText, {
+      glmApiKey:      API_CONFIG.glmApiKey,
+      deepseekApiKey: API_CONFIG.deepseekApiKey,
+      round:          clarifyRound
+    });
+
+    removeTyping();
+
+    // 需要追问
+    if (!result.ok) {
+      clarifyRound = result.round + 1;
+      lastUserText = fullText;
+      addMessage('ai', result.clarify);
+      document.getElementById('send-btn').disabled = false;
+      return;
+    }
+
+    // 解析成功，重置追问状态
+    clarifyRound = 0;
+    lastUserText = '';
+    intent = result.intent;
+    resultSource = result.source;
   }
 
-  // 解析成功，重置追问状态
-  clarifyRound = 0;
-  lastUserText = '';
-  const intent = result.intent;
-
-  // 显示解析来源（开发调试用，正式版可去掉）
+  // 显示解析来源
   const sourceLabel = { ai: '🤖 AI解析', fallback: '⚡ 快速解析', default_filled: '📋 默认填充' };
-  const intentSummary = `好的！我来帮您安排${intent.group_type === 'family' ? '家庭' : intent.group_type === 'couple' ? '情侣' : intent.group_type === 'senior' ? '长辈' : '朋友'}出行方案（${sourceLabel[result.source] || ''}）`;
-
-  // 根据 intent 映射 Mock 场景（Tool 2-3 接入前的过渡）
-  const scenario = (intent.group_type === 'family' || intent.group_type === 'senior') ? 'family' : 'friends';
+  const intentSummary = `好的！我来帮您安排${intent.group_type === 'family' ? '家庭' : intent.group_type === 'couple' ? '情侣' : intent.group_type === 'senior' ? '长辈' : '朋友'}出行方案（${sourceLabel[resultSource] || ''}）`;
 
   const childNote  = intent.children.length > 0 ? `，带 ${intent.children[0].age} 岁孩子` : '';
   const needNote   = intent.special_needs.includes('健康饮食') ? '，餐厅已过滤健康饮食选项' : '';
@@ -2716,6 +1204,9 @@ async function sendMessage() {
     actResult.activities,
     rstResult.restaurants,
     {
+      glmApiKey:          API_CONFIG.glmApiKey,
+      deepseekApiKey:     API_CONFIG.deepseekApiKey,
+      longcatApiKey:      API_CONFIG.longcatApiKey,
       ZHIPU_API_KEY:      API_CONFIG.glmApiKey,
       DEEPSEEK_API_KEY:   API_CONFIG.deepseekApiKey,
       LONGCAT_API_KEY:    API_CONFIG.longcatApiKey,
@@ -2753,7 +1244,14 @@ async function sendMessage() {
   showPlanCards(planItems, plan);
   updateTimelineFromPlan(planItems);
   lastPlanText = generateShareTextFromPlan(planItems, intent);
-  currentPlan  = { items: planItems, plan: plan };
+  currentPlan  = { items: planItems, plan: plan, intent: intent };
+  // 保存至历史（localStorage）
+  try { saveHistoryPlan(currentPlan); } catch(e) { console.warn('saveHistoryPlan error', e); }
+
+  // 自动规划最佳行程路线
+  setTimeout(function() {
+    planRouteOnMap();
+  }, 800);
 }
 
 function showPlanCards(planItems, plan) {
@@ -2812,6 +1310,7 @@ function showPlanCards(planItems, plan) {
         '</div>' +
       '</div>' +
       '<div class="card-body">' +
+        (item.image ? ('<div class="card-image" style="width:100%;height:160px;background-image:url('+item.image+');background-size:cover;background-position:center;border-radius:8px;margin-bottom:8px"></div>') : '') +
         '<div class="card-desc">' + (item.desc || '') + '</div>' +
         '<div class="card-tags">' +
           (item.tags || []).map(function(t) {
@@ -2822,10 +1321,20 @@ function showPlanCards(planItems, plan) {
           '<div class="info-item">⭐ ' + (item.rating || '-') + '</div>' +
           '<div class="info-item">📍 ' + (item.distance_text || '') + '</div>' +
           waitInfo + priceInfo +
+          (item.opening_hours ? ('<div class="info-item">🕘 ' + item.opening_hours + '</div>') : '') +
         '</div>' +
         tips +
       '</div>';
-
+      // 友好模式：点击行程卡片朗读 + 弹动
+    card.addEventListener('click', function(e) {
+      if (e.target.tagName === 'BUTTON' || e.target.closest('button')) return;
+      // 微弹动动画（与预约完成卡片一致）
+      card.classList.remove('friendly-bounce-card');
+      void card.offsetWidth;
+      card.classList.add('friendly-bounce-card');
+      card.addEventListener('animationend', function() { card.classList.remove('friendly-bounce-card'); }, { once: true });
+      friendlySpeak(card);
+    });
     cards.appendChild(card);
   });
 
@@ -2842,14 +1351,29 @@ function showPlanCards(planItems, plan) {
   actions.setAttribute('role', 'group');
   actions.setAttribute('aria-label', '方案操作');
   actions.innerHTML =
-    '<button class="action-btn btn-confirm" onclick="confirmPlan()" aria-label="确认方案并一键预约执行">✅ 确认方案 · 一键执行</button>' +
-    '<button class="action-btn btn-modify" onclick="modifyPlan()" aria-label="修改行程方案">✏️ 修改</button>' +
-    '<button class="action-btn btn-share" onclick="showShareModal()" aria-label="分享行程给家人朋友">📤 分享</button>';
+    '<button class="action-btn btn-confirm" onclick="confirmPlan()" aria-label="确认方案并一键预约执行" data-desc="确认方案：确认并一键执行预订与下单。">✅ 确认方案 · 一键执行</button>' +
+    '<button class="action-btn btn-modify" onclick="modifyPlan()" aria-label="修改行程方案" data-desc="修改：调整行程、时间或景点后重新规划。">✏️ 修改</button>' +
+    '<button class="action-btn btn-share" onclick="showShareModal()" aria-label="分享行程给家人朋友" data-desc="分享：把当前行程复制或生成可分享链接发送给他人。">📤 分享</button>';
 
   actions.querySelector('.btn-confirm').addEventListener('click', addRipple);
 
   bubble.appendChild(cards);
+  // 友好模式：点击操作栏（非按钮区域）朗读整段
+  actions.addEventListener('click', function(e) {
+    if (e.target.tagName === 'BUTTON' || e.target.closest('button')) return;
+    friendlySpeak(actions);
+  });
+  // 单独给每个 action-btn 加弹动（但不朗读，保留原功能）
+  actions.querySelectorAll('.action-btn').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      btn.classList.remove('friendly-bounce-card');
+      void btn.offsetWidth;
+      btn.classList.add('friendly-bounce-card');
+      btn.addEventListener('animationend', ()=> btn.classList.remove('friendly-bounce-card'), {once:true});
+    });
+  });
   bubble.appendChild(actions);
+  
   cardContainer.appendChild(avatar);
   cardContainer.appendChild(bubble);
   chatArea.appendChild(cardContainer);
@@ -2858,6 +1382,12 @@ function showPlanCards(planItems, plan) {
 
   // TTS 朗读第一站
   var firstName = planItems[0] ? planItems[0].name : '';
+  // 若在友好模式并且有行程，朗读完整行程（时间与站点）
+  if (document.body.classList.contains('friendly') && planItems && planItems.length) {
+    const parts = planItems.map(p => (p.time ? (p.time + '，') : '') + (p.name || '地点'));
+    const full = '今日行程共 ' + planItems.length + ' 站：' + parts.join('；');
+    speakText(full);
+  }
   var firstTime = planItems[0] ? planItems[0].arrival_time : '';
   setTimeout(function() {
     speakText('好的！为您规划了' + planItems.length + '站行程，第一站是' + firstName + '，' + firstTime + '出发。');
@@ -2898,6 +1428,15 @@ function addRipple(e) {
   setTimeout(() => r.remove(), 600);
 }
 
+// 友好模式：统一微弹动触发（复用）
+function triggerBounce(el) {
+  if (!el) return;
+  el.classList.remove('friendly-bounce-card');
+  void el.offsetWidth;
+  el.classList.add('friendly-bounce-card');
+  el.addEventListener('animationend', function() { el.classList.remove('friendly-bounce-card'); }, { once: true });
+}
+
 // ── Tool 5 + 6 UI 驱动层 ────────────────────────────────────
 async function confirmPlan() {
   if (!currentPlan || !currentPlan.items || currentPlan.items.length === 0) {
@@ -2920,7 +1459,7 @@ async function confirmPlan() {
 
   var bub = document.createElement('div');
   bub.className = 'msg-bubble';
-
+  
   var heading = document.createElement('strong');
   heading.textContent = '🚀 正在为您执行预约…';
   bub.appendChild(heading);
@@ -2990,6 +1529,11 @@ async function confirmPlan() {
   note.style.cssText = 'margin-top:14px;padding:10px 12px;background:var(--success-bg);border-radius:8px;font-size:0.88em;color:var(--success);font-weight:500;';
   note.textContent = bookingResult.summary;
   bub.appendChild(note);
+  bub.addEventListener('click', function(e) {
+    if (e.target.tagName === 'BUTTON' || e.target.closest('button')) return;
+    triggerBounce(bub);
+    friendlySpeak(bub);
+  });
   chatArea.scrollTop = chatArea.scrollHeight;
 
   setTimeout(function() { speakText(bookingResult.summary); }, 600);
@@ -3002,16 +1546,36 @@ function generateShareText(scenario) {
 // ── 分享弹窗（升级版）────────────────────────────────────────
 function showShareModal() {
   var share = lastShareData || null;
-  if (share) {
-    document.getElementById('share-content').textContent = share.wechat;
-    var titleEl = document.getElementById('share-title');
-    if (titleEl) titleEl.textContent = '📤 ' + share.title;
-  } else {
-    document.getElementById('share-content').textContent =
-      lastPlanText || '先规划一个行程，再来分享吧 😊';
+  var text = share ? share.wechat : '暂无行程，请先告诉我您的需求开始规划。';
+  if (share && document.getElementById('share-title')) {
+    document.getElementById('share-title').textContent = '📤 ' + (share.title || '分享行程');
   }
+  document.getElementById('share-content').textContent = text;
+
+  // 生成二维码
+  var qrBox = document.getElementById('share-qrcode');
+  qrBox.innerHTML = '';
+  if (share && typeof QRCode !== 'undefined') {
+    // 将行程文字编码到 data URI，可在另一设备直接展示
+    var encoded = encodeURIComponent(text.slice(0, 500));
+    var qrUrl = 'https://api.qrserver.com/v1/create-qr-code/?size=128x128&data=' + encoded;
+    var img = document.createElement('img');
+    img.src = qrUrl; img.width = 128; img.height = 128;
+    img.style.borderRadius = '8px';
+    img.alt = '行程二维码';
+    qrBox.appendChild(img);
+  } else if (typeof QRCode !== 'undefined' && !share) {
+    qrBox.innerHTML = '<div style="color:var(--text-4);font-size:0.85rem;">生成行程后自动显示二维码</div>';
+  } else {
+    // fallback：用 qrcode.js 本地生成
+    try {
+      new QRCode(qrBox, { text: text.slice(0, 300), width: 128, height: 128, colorDark: '#1E40AF', colorLight: '#fff' });
+    } catch(e) {
+      qrBox.innerHTML = '<div style="color:var(--text-4);font-size:0.85rem;">二维码生成失败</div>';
+    }
+  }
+
   document.getElementById('share-modal').classList.add('open');
-  document.querySelector('.modal').focus();
 }
 
 function closeModal(e) {
@@ -3026,6 +1590,20 @@ function copyShareText() {
     btn.textContent = '✅ 已复制！';
     setTimeout(function() { btn.textContent = '📋 复制文字'; }, 1800);
   }).catch(function() { alert('请手动复制文字'); });
+}
+
+function copyWechatText() {
+  var text = document.getElementById('share-content').textContent;
+  var msg = '【Easy go 行程分享】\n' + text + '\n\n由 Easy go 出行规划生成 🗺️';
+  navigator.clipboard.writeText(msg).then(function(){
+    alert('已复制！打开微信粘贴发送给好友即可 💬');
+  }).catch(function(){
+    var ta = document.createElement('textarea');
+    ta.value = msg; document.body.appendChild(ta);
+    ta.select(); document.execCommand('copy');
+    document.body.removeChild(ta);
+    alert('已复制！打开微信粘贴发送给好友即可 💬');
+  });
 }
 
 document.getElementById('share-modal').addEventListener('keydown', function(e) {
@@ -3052,8 +1630,184 @@ function addMessage(role, text) {
 
   msg.appendChild(avatar);
   msg.appendChild(bubble);
+  // 友好模式：点击气泡朗读内容 + 微弹动
+  bubble.style.cursor = 'pointer';
+  bubble.title = '点击朗读';
+  bubble.addEventListener('click', function(e) {
+    if (e.target.tagName === 'BUTTON' || e.target.closest('button')) return;
+    triggerBounce(bubble);
+    friendlySpeak(bubble);
+  });
   chatArea.appendChild(msg);
   chatArea.scrollTop = chatArea.scrollHeight;
+
+  // 自动语音朗读 AI 输出
+  if (role === 'ai') {
+    const cleanText = text.replace(/<[^>]*>/g, '').trim();
+    if (cleanText) {
+      // 当为友好模式 speakText 会生效，否则无声
+      speakText(cleanText);
+
+      // 如果 AI 文本看起来需要用户回复，追加输入方式提示
+      const needsReply = /[？?]|请问|请确认|是否|需要您/.test(cleanText);
+      if (needsReply) {
+        const guide = '您可以在下方输入框输入文字，或选择关键字，或按语音输入按钮进行语音输入。';
+        // 把提示合并在一起以便一次播放
+        speakText(cleanText + '。' + guide);
+      }
+    }
+  }
+}
+
+// 取得元素摘要（用于 hover 时朗读）
+function getElementSummary(el) {
+  if (!el) return '';
+  // 优先使用 data-desc 属性
+  const d = el.getAttribute && el.getAttribute('data-desc');
+  if (d) return d;
+  // 时间轴特殊处理
+  if (el.id === 'timeline') return el.innerText.replace(/\s+/g, ' ').trim();
+  if (el.classList && el.classList.contains('plan-card')) return el.innerText.replace(/\s+/g, ' ').trim();
+  if (el.classList && el.classList.contains('msg-bubble')) return el.innerText.replace(/\s+/g, ' ').trim();
+  return el.innerText ? el.innerText.replace(/\s+/g, ' ').trim() : '';
+}
+
+function isElementHasData(el) {
+  if (!el) return false;
+  const text = getElementSummary(el) || '';
+  // 排除占位文案
+  if (/等待规划中|定位中|加载中|暂无/.test(text)) return false;
+  return text.length > 3;
+}
+
+// 绑定 hover 事件，在友好模式下朗读区块说明与内容
+function bindHoverTTS() {
+  try {
+    // 精準綁定各區塊，避免 selector 過於寬泛造成錯誤朗讀
+    // 天气卡片（只读天气内容，如 "中雨，25°C"）
+    const weather = document.getElementById('weather-card');
+    if (weather) {
+      weather.addEventListener('mouseenter', function() {
+        if (!document.body.classList.contains('friendly')) return;
+        try { if (window.speechSynthesis) window.speechSynthesis.cancel(); } catch(e){}
+        const v = document.getElementById('weather-info')?.innerText || '';
+        if (v) speakText('今日的天气是' + v);
+      });
+    }
+    // 当前时间卡片（只读时间，如 "23:29"）
+    const timeCard = document.querySelector('.info-card:has(#current-time)');
+    if (timeCard) {
+      timeCard.addEventListener('mouseenter', function() {
+        if (!document.body.classList.contains('friendly')) return;
+        try { if (window.speechSynthesis) window.speechSynthesis.cancel(); } catch(e){}
+        const v = document.getElementById('current-time')?.innerText.trim() || '';
+        if (v) speakText('现在的时间是' + v);
+      });
+    }
+    // 出行建议卡片
+    const travel = document.getElementById('travel-suggestion-card');
+    if (travel) {
+      travel.addEventListener('mouseenter', function() {
+        if (!document.body.classList.contains('friendly')) return;
+        try { if (window.speechSynthesis) window.speechSynthesis.cancel(); } catch(e){}
+        const desc = travel.getAttribute('data-desc') || '出行建议。';
+        const v = document.getElementById('travel-suggestion-summary')?.innerText || '';
+        if (v) speakText(desc + ' 当前建议：' + v);
+      });
+    }
+
+    // 时间轴整体（朗读每一站详细信息）
+    const timeline = document.getElementById('timeline');
+    if (timeline) {
+      timeline.addEventListener('mouseenter', function() {
+        if (!document.body.classList.contains('friendly')) return;
+        try { if (window.speechSynthesis) window.speechSynthesis.cancel(); } catch(e){}
+        const desc = timeline.getAttribute('data-desc') || '行程时间轴：';
+        speakText(desc);
+        readTimelineDetails();
+      });
+    
+    }
+
+    // 聊天内的行程卡片（hover 微弹动 + 朗读）
+    document.querySelectorAll('.plan-card').forEach(pc => {
+      pc.addEventListener('mouseenter', function() {
+        pc.style.transition = 'transform 0.18s cubic-bezier(.36,1.56,.64,1)';
+        pc.style.transform = 'scale(1.025)';
+        if (!document.body.classList.contains('friendly')) return;
+        try { if (window.speechSynthesis) window.speechSynthesis.cancel(); } catch(e){}
+        readPlanCard(pc);
+      });
+      pc.addEventListener('mouseleave', function() {
+        pc.style.transform = 'scale(1)';
+      });
+    });
+
+    // 其餘常見區塊（地圖預覽、輸入區、hero）仍可使用通用處理
+    ['.map-preview', '.hero-section', '.keyword-filter-bar', '#locWidget'].forEach(sel => {
+      document.querySelectorAll(sel).forEach(el => {
+        el.addEventListener('mouseenter', function() {
+          if (!document.body.classList.contains('friendly')) return;
+          try { if (window.speechSynthesis) window.speechSynthesis.cancel(); } catch(e){}
+          const desc = el.getAttribute && el.getAttribute('data-desc');
+          if (desc) speakText(desc);
+        });
+      });
+    });
+    // mic 按钮微动画提示
+    const mic = document.getElementById('mic-btn');
+    if (mic) {
+      mic.addEventListener('mouseenter', ()=> mic.classList.add('hovering'));
+      mic.addEventListener('mouseleave', ()=> mic.classList.remove('hovering'));
+    }
+  } catch(e){console.warn(e)}
+}
+
+function readTimelineDetails() {
+  if (!document.body.classList.contains('friendly')) return;
+  try { if (window.speechSynthesis) window.speechSynthesis.cancel(); } catch(e){}
+  const timeline = document.getElementById('timeline');
+  if (!timeline) return;
+  // 收集每一個行程項目
+  const items = [...timeline.querySelectorAll('.tl-item')];
+  if (!items.length) {
+    // 尝试从 currentPlan 回退
+    if (typeof currentPlan !== 'undefined' && currentPlan && currentPlan.items && currentPlan.items.length) {
+      const cp = currentPlan.items;
+      const partsCp = cp.map((p, idx) => {
+        const ord = ['第一','第二','第三','第四','第五','第六'][idx] || (idx+1) + '站';
+        const time = p.time || p.start || '';
+        const name = p.name || p.title || '地点';
+        if (time) return ord + '站，' + time + '，到达 ' + name;
+        return ord + '站，' + name;
+      });
+      const textCp = '当前行程共有 ' + cp.length + ' 站：' + partsCp.join('；');
+      speakText(textCp);
+    }
+    return;
+  }
+  const parts = items.map((it, idx) => {
+    const timeEl = it.querySelector('.tl-time');
+    const nameEl = it.querySelector('.tl-name');
+    const time = timeEl ? timeEl.innerText.trim() : '';
+    const name = nameEl ? nameEl.innerText.trim() : '';
+    const ord = ['第一','第二','第三','第四','第五','第六'][idx] || (idx+1) + '站';
+    if (time) return ord + '站，' + time + '，到达 ' + name;
+    return ord + '站，' + name;
+  });
+  const text = '当前行程共有 ' + items.length + ' 站：' + parts.join('；');
+  speakText(text);
+}
+
+function readPlanCard(cardEl) {
+  if (!document.body.classList.contains('friendly')) return;
+  try { if (window.speechSynthesis) window.speechSynthesis.cancel(); } catch(e){}
+  // cardEl 结构： .plan-card 内含 .card-header .card-body 等
+  const title = cardEl.querySelector('.card-title')?.innerText.trim() || '';
+  const meta = cardEl.querySelector('.card-meta')?.innerText.trim() || '';
+  const desc = cardEl.querySelector('.card-desc')?.innerText.trim() || '';
+  const info = [title, meta, desc].filter(Boolean).join('。');
+  if (info) speakText(info);
 }
 
 function showTyping() {
@@ -3106,18 +1860,214 @@ function clearChat() {
 }
 
 // ── TTS ──
+let lastSpokenText = '您好，欢迎使用美团周末出行规划助手。请告诉我您想怎么玩。';
+let isSpeakingPaused = false;
+
+function toggleSpeakPause() {
+  if (!('speechSynthesis' in window)) return;
+  // 仅在友好模式允许语音控制
+  if (!document.body.classList.contains('friendly')) {
+    // 提示用户启用友好模式
+    addMessage('ai', '请先开启友好模式以使用语音功能（右上角 友好模式）。');
+    return;
+  }
+  const synth = window.speechSynthesis;
+  
+  if (synth.speaking) {
+    if (synth.paused) {
+      synth.resume();
+      isSpeakingPaused = false;
+      updateSpeakBtnText(true);
+      document.getElementById('audio-toggle-btn')?.classList.add('speaking');
+    } else {
+      synth.pause();
+      isSpeakingPaused = true;
+      updateSpeakBtnText(false);
+      document.getElementById('audio-toggle-btn')?.classList.remove('speaking');
+    }
+  } else {
+    isSpeakingPaused = false;
+    speakText(lastSpokenText);
+    document.getElementById('audio-toggle-btn')?.classList.add('speaking');
+  }
+}
+
+function updateSpeakBtnText(isPlaying) {
+  const btn = document.getElementById('audio-toggle-btn');
+  if (btn) {
+    btn.innerHTML = isPlaying
+      ? '<span aria-hidden="true">⏸️</span> 暂停语音'
+      : '<span aria-hidden="true">▶️</span> 继续语音';
+  }
+}
+
 function speakText(text) {
+  if (!document.body.classList.contains('friendly')) return;
+  // 去掉 emoji 再朗读
+  text = text.replace(/[\u{1F000}-\u{1FFFF}\u{2600}-\u{27BF}\u{2300}-\u{23FF}\u{2B50}\u{2B55}\u{FE0F}]/gu, '')
+             .replace(/[^\S\n]{2,}/g, ' ').trim();
+  if (!text) return;
   if ('speechSynthesis' in window) {
+    lastSpokenText = text;
     window.speechSynthesis.cancel();
+    isSpeakingPaused = false;
+    updateSpeakBtnText(true);
     const u = new SpeechSynthesisUtterance(text);
     u.lang = 'zh-CN';
     u.rate = 0.9;
+    u.onend = function() {
+      updateSpeakBtnText(false);
+      document.getElementById('audio-toggle-btn')?.classList.remove('speaking');
+    };
+    u.onerror = function() {
+      updateSpeakBtnText(false);
+      document.getElementById('audio-toggle-btn')?.classList.remove('speaking');
+    };
     window.speechSynthesis.speak(u);
   }
 }
+// 友好模式：点击卡片朗读 + 弹动
+function friendlySpeak(el) {
+  if (!document.body.classList.contains('friendly')) return;
+  const txt = el.innerText.replace(/[\u{1F000}-\u{1FFFF}\u{2600}-\u{27BF}\u{2300}-\u{23FF}]/gu,'').replace(/\s+/g,' ').trim();
+  if (!txt) return;
+  window.speechSynthesis && window.speechSynthesis.cancel();
+  speakText(txt);
+  // 弹动
+  el.classList.remove('friendly-bounce-card');
+  void el.offsetWidth; // reflow
+  el.classList.add('friendly-bounce-card');
+  el.addEventListener('animationend', ()=> el.classList.remove('friendly-bounce-card'), {once:true});
+}
+
+// 给 emoji 元素绑定大幅跳动
+function bindEmojiJump(el) {
+  el.style.cursor = 'pointer';
+  el.addEventListener('click', function(e) {
+    if (!document.body.classList.contains('friendly')) return;
+    e.stopPropagation();
+    el.classList.remove('friendly-bounce-emoji');
+    void el.offsetWidth;
+    el.classList.add('friendly-bounce-emoji');
+    el.addEventListener('animationend', ()=> el.classList.remove('friendly-bounce-emoji'), {once:true});
+  });
+}
+
 function speakLastPlan() {
   if (lastPlanText) speakText(lastPlanText);
   else speakText('您还没有规划行程，请先告诉我您想怎么玩。');
+}
+
+// ── KEYWORD FILTER ─────────────────────────────────────────────────
+// 关键字 → ACTIVITIES_DB / RESTAURANTS_DB 中对应的 tags
+const KW_TAG_MAP = {
+  '剧院':     ['音乐','演出','表演','剧院'],
+  '餐厅':     ['餐厅','美食','小吃','本帮菜','烧烤','火锅'],
+  '民宿':     ['民宿','酒店','住宿','精品酒店'],
+  '游乐场':   ['游乐','亲子','互动','刺激','儿童'],
+  '商场':     ['购物','商场','mall','雨天'],
+  '俱乐部':   ['夜生活','俱乐部','酒吧','livehouse'],
+  '亲子':     ['亲子','儿童','互动','教育','科普'],
+  '展览':     ['展览','艺术','当代艺术','书画','文艺'],
+  'citywalk': ['citywalk','历史建筑','梧桐区','法式','街区'],
+  '公园':     ['公园','户外','草坪','骑行','森林'],
+  '咖啡':     ['咖啡','文创','书店','下午茶'],
+};
+
+/**
+ * 点击关键字按钮：
+ * 1. 切换 active 状态
+ * 2. 追加 / 移除输入框中的关键字
+ * 3. 从 ACTIVITIES_DB 预筛选匹配景点，把名称写入 placeholder 提示用户
+ */
+function appendKeyword(btn, keyword) {
+  const input = document.getElementById('main-input');
+  const isActive = btn.classList.toggle('active');
+
+  // 追加 / 移除输入框内的关键字（精确词边界避免重复）
+  let current = input.value;
+  const kwRe = new RegExp('(^|\\s)' + keyword + '(\\s|$)', 'g');
+  if (isActive) {
+    if (!kwRe.test(current)) {
+      input.value = current ? current.trim() + ' ' + keyword : keyword;
+    }
+  } else {
+    input.value = current.replace(new RegExp('\\s*' + keyword, 'g'), '').trim();
+  }
+
+  input.focus();
+
+  // 预筛选提示（基于 ACTIVITIES_DB 的 tags）
+  const hasDB = typeof ACTIVITIES_DB !== 'undefined';
+  const activeKws = [...document.querySelectorAll('.kw-btn.active')].map(b => b.getAttribute('onclick').match(/'([^']+)'/)?.[1]).filter(Boolean);
+
+  if (hasDB && activeKws.length > 0) {
+    // 收集所有激活关键字对应的 tag 集合
+    const allTags = activeKws.flatMap(k => KW_TAG_MAP[k] || [k]);
+    const matched = ACTIVITIES_DB.filter(a =>
+      allTags.some(tag => a.tags.some(t => t.includes(tag) || tag.includes(t)))
+    );
+    if (matched.length > 0) {
+      const names = matched.slice(0, 3).map(a => a.name).join('、');
+      input.placeholder = `已筛选「${activeKws.join('+')}」相关：${names}${matched.length > 3 ? ' 等' + matched.length + '处' : ''}，继续补充其他需求…`;
+    } else {
+      input.placeholder = `未找到"${activeKws.join('+')} "相关场所，请换个关键字或直接描述需求…`;
+    }
+  } else {
+    // 全部取消，恢复默认
+    input.placeholder = '例如：想和老婆孩子（孩子5岁）下午出去玩，别太远，孩子喜欢玩水，大人想吃个好的…';
+  }
+}
+
+// ── 侧边栏语音辅助说明 ──────────────────────────────────────────
+function initSidebarTTS() {
+  const sidebarElements = [
+    {
+      selector: '.sidebar-section:nth-of-type(1)',
+      text: '今日行程时间轴。显示已规划站点的预计到达时间与站点名称。'
+    },
+    {
+      selector: '.sidebar-section:nth-of-type(2)',
+      text: '地图预览区域。显示您行程的地理分布与路线轨迹。您可以点击“放大地图”按钮，在弹出的大图上选择驾车、公交或步行模式并进行路线规划。'
+    },
+    
+    {
+      selector: '.info-card:nth-of-type(2)',
+      text: '今日天气。显示您当前位置的天气状况，帮助您合理安排出行装备。'
+    },
+    {
+      selector: '.info-card:nth-of-type(3)',
+      text: '当前系统时间。实时同步最新时间。'
+    },
+    {
+      selector: '#travel-suggestion-card',
+      text: '出行建议卡片。提示当前推荐使用的出行方式。您可以点击“展开”按钮，选择不同的交通方式和排序策略，并在地图上重新规划路线。'
+    },
+    {
+      selector: 'button[onclick="clearChat()"]',
+      text: '重新规划按钮。点击可以清空当前对话，重新开始您的行程规划。'
+    },
+    {
+      selector: 'button[onclick="showShareModal()"]',
+      text: '分享行程按钮。点击可以生成适合微信或语音播放的行程单文字，并一键复制到剪贴板。'
+    },
+    {
+      selector: 'button[onclick="speakLastPlan()"]',
+      text: '朗读行程按钮。点击后语音合成系统将为您大声朗读当前的行程安排。'
+    }
+  ];
+
+  sidebarElements.forEach(item => {
+    const el = document.querySelector(item.selector);
+    if (el) {
+      el.addEventListener('mouseenter', () => {
+        speakText(item.text);
+      });
+      el.addEventListener('focus', () => {
+        speakText(item.text);
+      }, true);
+    }
+  });
 }
 
 // ── UTILS ──
@@ -3126,13 +2076,28 @@ function delay(ms) { return new Promise(r => setTimeout(r, ms)); }
 // 更新側欄時間軸（簡易實作）
 function updateTimelineFromPlan(planItems) {
   const container = document.getElementById('timeline');
-  if (!container) return;
+  const modalContainer = document.getElementById('mapItineraryTimeline');
+  if (!container && !modalContainer) return;
   if (!planItems || planItems.length === 0) {
-    container.innerHTML = '<div class="tl-item"><div class="tl-dot upcoming"></div><div class="tl-time">等待规划中…</div><div class="tl-name" style="color:var(--text-4);">告诉我您的需求开始规划</div></div>';
+    const emptyHtml = '<div class="tl-item"><div class="tl-dot upcoming"></div><div class="tl-time">等待规划中…</div><div class="tl-name" style="color:var(--text-4);">告诉我您的需求开始规划</div></div>';
+    if (container) container.innerHTML = emptyHtml;
+    if (modalContainer) modalContainer.innerHTML = '';
     return;
+  // 同步更新地图弹窗左侧时间轴
+  const mapTL = document.getElementById('mapItineraryTimeline');
+  if (mapTL && planItems && planItems.length) {
+    mapTL.innerHTML = planItems.map((it, i) => `
+      <div style="display:flex;gap:8px;align-items:flex-start;padding:8px;border-radius:8px;background:var(--surface);border:1px solid var(--border);">
+        <div style="width:22px;height:22px;border-radius:50%;background:var(--primary);color:#fff;font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;">${i+1}</div>
+        <div>
+          <div style="font-size:13px;font-weight:600;color:var(--text-1);">${it.time||''} ${it.name||it.title||''}</div>
+          <div style="font-size:11px;color:var(--text-3);">${it.address||it.desc||''}</div>
+        </div>
+      </div>`).join('');
+  }
   }
 
-  container.innerHTML = planItems.map((it, idx) => {
+  const html = planItems.map((it, idx) => {
     const time = it.arrival_time || it.time || '--:--';
     const name = it.name || it.title || '未知地点';
     const sub  = it.desc || it.address || '';
@@ -3145,6 +2110,23 @@ function updateTimelineFromPlan(planItems) {
         ${sub ? `<div class="tl-sub">${sub}</div>` : ''}
       </div>`;
   }).join('');
+
+  if (container) container.innerHTML = html;
+  // 同步更新放大地圖左側的行程時間軸（mapItineraryTimeline）
+  if (modalContainer) {
+    // modal 中 timeline 項目使用較簡潔的行內布局
+    modalContainer.innerHTML = planItems.map((it, idx) => {
+      const name = it.name || it.title || '未知地点';
+      const time = it.arrival_time || it.time || '';
+      return `<div class="tl-item" style="display:flex;align-items:center;justify-content:space-between;padding:6px;border:1px solid var(--border);border-radius:6px;">
+                <div style="display:flex;flex-direction:column;">
+                  <div style="font-weight:600">${name}</div>
+                  ${time ? `<div style="font-size:12px;color:var(--text-3)">${time}</div>` : ''}
+                </div>
+                <div style="font-size:12px;color:var(--text-3)">${idx+1}</div>
+            </div>`;
+    }).join('');
+  }
 }
 
 // 產生分享/朗讀用的行程文字（簡易版）
@@ -3255,7 +2237,12 @@ function renderPreviewMarkers() {
     _geocoder.getLocation(addr, (status, result) => {
       if (status === 'complete' && result.geocodes && result.geocodes.length) {
         const loc = result.geocodes[0].location;
-        const marker = new AMap.Marker({ position: [loc.lng, loc.lat], title: act.name });
+        
+        const marker = new AMap.Marker({
+          position: [loc.lng, loc.lat], title: act.name,
+          content: `<div style="width:28px;height:28px;border-radius:50%;background:var(--primary);color:#fff;font-size:13px;font-weight:700;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 6px rgba(0,0,0,0.3);border:2px solid #fff;">${i+1}</div>`,
+          offset: new AMap.Pixel(-14, -14)
+        });
         marker.setMap(_amapPreviewMap);
         marker.on('click', ()=>{ addMessage('ai', `📍 已选：${act.name}`); });
         _previewMarkers.push(marker);
@@ -3266,14 +2253,24 @@ function renderPreviewMarkers() {
 
 function openFullMap(){
   document.getElementById('mapModal').style.display = 'flex';
+  // 同步出行建议到地图左侧面板
+  const suggEl = document.getElementById('travel-suggestion-summary');
+  const mapSugg = document.getElementById('mapTravelSuggestion');
+  if (suggEl && mapSugg) mapSugg.textContent = suggEl.textContent || '地铁/公交优先';
   if (!_amapFullMap) {
     loadAMapIfNeeded().then(()=>{
       _amapFullMap = new AMap.Map('amap-full', { resizeEnable:true, zoom:12, center:[121.4737,31.2304] });
+      // 修复 willReadFrequently 警告
+      setTimeout(()=>{
+        document.querySelectorAll('canvas').forEach(c=>{
+          try{ const ctx = c.getContext('2d', {willReadFrequently:true}); }catch(e){}
+        });
+      }, 500);
       _geocoder = new AMap.Geocoder();
       // copy preview markers
       _previewMarkers.forEach(pm=>{
         const pos = pm.getPosition();
-        new AMap.Marker({ position: pos, map: _amapFullMap });
+        new AMap.Marker({ position: pos, map: _amapFullMap, content: '<div style="width:24px;height:24px;border-radius:50%;background:#1E40AF;border:2px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,0.3);"></div>', offset: new AMap.Pixel(-12,-12) });
       });
       // if we already have a planned route on preview, draw it on full map as well
       if (currentRouteInfo && currentRouteInfo.locs) {
@@ -3465,8 +2462,9 @@ function drawRouteForMode(mode, locs, policy, parsedInfo){
             locs.forEach((p, idx)=>{
               const pos = [p.lng, p.lat];
               const title = p.name || p.title || p.address || ('地点'+(idx+1));
-              const marker = new AMap.Marker({ position: pos, title: title, map: _amapFullMap });
-              const marker2 = new AMap.Marker({ position: pos, title: title, map: _amapPreviewMap });
+              const pinHtml = (n) => `<div style="display:flex;flex-direction:column;align-items:center;"><div style="width:26px;height:26px;border-radius:50%;background:#1E40AF;color:#fff;font-size:12px;font-weight:700;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 8px rgba(0,0,0,0.25);border:2px solid #fff;">${n}</div><div style="width:2px;height:6px;background:#1E40AF;"></div></div>`;
+              const marker = new AMap.Marker({ position: pos, title: title, map: _amapFullMap, content: pinHtml(idx+1), offset: new AMap.Pixel(-13,-32) });
+              const marker2 = new AMap.Marker({ position: pos, title: title, map: _amapPreviewMap, content: pinHtml(idx+1), offset: new AMap.Pixel(-13,-32) });
               _routeOverlaysFull.push(marker); _routeOverlaysPreview.push(marker2);
               const info = new AMap.InfoWindow({ content: `<div style="font-size:13px"><strong>${title}</strong><div style="font-size:12px;color:#666;margin-top:4px">序号：${idx+1}</div></div>` });
               marker.on('click', ()=>info.open(_amapFullMap, marker.getPosition()));
@@ -3536,24 +2534,24 @@ function geocodeAddress(addr){
   });
 }
 
-// ===== WEATHER (使用 Seniverse if available) =====
-function updateWeatherForLocation(city){
-  const key = window.WEATHER_API_KEY || '';
-  const el = document.getElementById('weather-info');
-  if(!key || !city){ if(el) el.textContent = '天气信息不可用'; return; }
-  const url = `https://api.seniverse.com/v3/weather/now.json?key=${encodeURIComponent(key)}&location=${encodeURIComponent(city)}&language=zh-Hans&unit=c`;
-  fetch(url).then(r=>r.json()).then(data=>{
-    try{
-      const now = data.results && data.results[0] && data.results[0].now;
-      if(now){ el.textContent = `${now.text}，${now.temperature}°C`; }
-      else el.textContent = '天气信息获取失败';
-    }catch(e){ el.textContent = '天气解析错误'; }
-  }).catch(err=>{ el.textContent = '天气加载失败'; });
-}
+// ===== WEATHER =====
+// 天气功能已提取至 tools/get_weather.js，通过外部引用加载。
+// updateWeatherForLocation() / getWeather() / WEATHER_CODE_ICON 均由该文件挂载到 window。
+
+// 页面加载后立即拉取天气，并每 10 分钟刷新一次
+updateWeatherForLocation(currentLocation.city || currentLocation.province || '');
+setInterval(function(){ updateWeatherForLocation(currentLocation.city || currentLocation.province || ''); }, 10 * 60 * 1000);
 
 // ===== Travel panel helpers =====
 function toggleTravelPanel(){ const p=document.getElementById('travel-panel'); const btn=document.getElementById('travel-expand-btn'); if(p.style.display==='none'){ p.style.display='block'; btn.textContent='收起'; } else { p.style.display='none'; btn.textContent='展开'; } }
 function collapseTravelPanel(){ document.getElementById('travel-panel').style.display='none'; document.getElementById('travel-expand-btn').textContent='展开'; }
+
+// ---------- Itinerary management ----------
+// Note: `searchAndAddLocation` and `renderTimeline` removed — modal left panel now only shows
+// the synchronized `#mapItineraryTimeline` (updated via `updateTimelineFromPlan`).
+
+// -----------------------------------------------------------------
+
 
 // Plan route using suggestion controls: use currentPlan if exists, otherwise use lastPlan/current selection
 function planRouteFromSuggestion(){
@@ -3573,7 +2571,132 @@ function planRouteFromSuggestion(){
 }
 
 // ====== 简化的省市区选择（供导航之用） ======
-const MINI_REGIONS = { '上海市':{'上海市':['黄浦区','徐汇区','长宁区','静安区','浦东新区']}, '北京市':{'北京市':['东城区','西城区']}};
+const MINI_REGIONS = {
+  '北京市':  { '北京市':  ['东城区','西城区','朝阳区','丰台区','石景山区','海淀区','顺义区','通州区','大兴区','昌平区','房山区','门头沟区','平谷区','怀柔区','密云区','延庆区'] },
+  '上海市':  { '上海市':  ['黄浦区','徐汇区','长宁区','静安区','普陀区','虹口区','杨浦区','闵行区','宝山区','嘉定区','浦东新区','金山区','松江区','青浦区','奉贤区','崇明区'] },
+  '天津市':  { '天津市':  ['和平区','河东区','河西区','南开区','河北区','红桥区','东丽区','西青区','津南区','北辰区','武清区','宝坻区','滨海新区','宁河区','静海区','蓟州区'] },
+  '重庆市':  { '重庆市':  ['渝中区','江北区','南岸区','九龙坡区','沙坪坝区','大渡口区','北碚区','渝北区','巴南区','万州区','涪陵区','黔江区','长寿区','江津区','合川区'] },
+  '广东省':  { '广州市':  ['越秀区','荔湾区','海珠区','天河区','白云区','黄埔区','花都区','番禺区','南沙区','从化区','增城区'],
+               '深圳市':  ['罗湖区','福田区','南山区','宝安区','龙岗区','盐田区','龙华区','坪山区','光明区'],
+               '珠海市':  ['香洲区','斗门区','金湾区'],
+               '东莞市':  ['莞城街道','南城街道','万江街道','常平镇','长安镇'],
+               '佛山市':  ['禅城区','南海区','顺德区','三水区','高明区'],
+               '中山市':  ['石岐街道','东区街道','西区街道','南区街道','五桂山街道'],
+               '惠州市':  ['惠城区','惠阳区','博罗县','惠东县','龙门县'],
+               '汕头市':  ['金平区','龙湖区','濠江区','潮阳区','潮南区','澄海区'] },
+  '浙江省':  { '杭州市':  ['上城区','拱墅区','西湖区','滨江区','萧山区','余杭区','临平区','钱塘区','富阳区','临安区','桐庐县','淳安县','建德市'],
+               '宁波市':  ['海曙区','江北区','镇海区','北仑区','鄞州区','奉化区','象山县','宁海县','余姚市','慈溪市'],
+               '温州市':  ['鹿城区','龙湾区','瓯海区','洞头区','永嘉县','平阳县','苍南县','文成县'],
+               '嘉兴市':  ['南湖区','秀洲区','嘉善县','海盐县','海宁市','平湖市','桐乡市'],
+               '湖州市':  ['吴兴区','南浔区','德清县','长兴县','安吉县'],
+               '绍兴市':  ['越城区','柯桥区','上虞区','新昌县','诸暨市','嵊州市'],
+               '金华市':  ['婺城区','金东区','武义县','浦江县','磐安县','兰溪市','义乌市','东阳市','永康市'],
+               '舟山市':  ['定海区','普陀区','岱山县','嵊泗县'] },
+  '江苏省':  { '南京市':  ['玄武区','秦淮区','建邺区','鼓楼区','浦口区','栖霞区','雨花台区','江宁区','六合区','溧水区','高淳区'],
+               '苏州市':  ['姑苏区','虎丘区','吴中区','相城区','吴江区','工业园区','常熟市','张家港市','昆山市','太仓市'],
+               '无锡市':  ['梁溪区','锡山区','惠山区','滨湖区','新吴区','江阴市','宜兴市'],
+               '常州市':  ['天宁区','钟楼区','新北区','武进区','金坛区','溧阳市'],
+               '南通市':  ['崇川区','海门区','通州区','如东县','启东市','如皋市','海安市'],
+               '扬州市':  ['广陵区','邗江区','江都区','宝应县','仪征市','高邮市'],
+               '镇江市':  ['京口区','润州区','丹徒区','丹阳市','扬中市','句容市'] },
+  '四川省':  { '成都市':  ['锦江区','青羊区','金牛区','武侯区','成华区','龙泉驿区','青白江区','新都区','温江区','双流区','郫都区','新津区','金堂县','大邑县','蒲江县','都江堰市','彭州市','邛崃市','崇州市','简阳市'],
+               '绵阳市':  ['涪城区','游仙区','安州区','三台县','盐亭县','梓潼县','北川县','平武县','江油市'],
+               '德阳市':  ['旌阳区','罗江区','中江县','广汉市','什邡市','绵竹市'] },
+  '湖北省':  { '武汉市':  ['江岸区','江汉区','硚口区','汉阳区','武昌区','青山区','洪山区','东西湖区','蔡甸区','江夏区','黄陂区','新洲区'],
+               '宜昌市':  ['西陵区','伍家岗区','点军区','猇亭区','夷陵区','远安县','兴山县','秭归县','长阳土家族自治县','五峰土家族自治县','宜都市','当阳市','枝江市'],
+               '襄阳市':  ['襄城区','樊城区','襄州区','南漳县','谷城县','保康县','老河口市','枣阳市','宜城市'] },
+  '陕西省':  { '西安市':  ['新城区','碑林区','莲湖区','灞桥区','未央区','雁塔区','阎良区','临潼区','长安区','高陵区','鄠邑区','蓝田县','周至县'],
+               '咸阳市':  ['秦都区','渭城区','三原县','泾阳县','乾县','礼泉县','永寿县','长武县','旬邑县','淳化县','武功县','兴平市','彬州市'],
+               '宝鸡市':  ['渭滨区','金台区','陈仓区','凤翔区','岐山县','扶风县','眉县','陇县','千阳县','麟游县','凤县','太白县'] },
+  '湖南省':  { '长沙市':  ['芙蓉区','天心区','岳麓区','开福区','雨花区','望城区','长沙县','浏阳市','宁乡市'],
+               '株洲市':  ['荷塘区','芦淞区','石峰区','天元区','渌口区','攸县','茶陵县','炎陵县','醴陵市'],
+               '湘潭市':  ['雨湖区','岳塘区','湘潭县','湘乡市','韶山市'] },
+  '福建省':  { '福州市':  ['鼓楼区','台江区','仓山区','马尾区','晋安区','闽侯县','连江县','罗源县','闽清县','永泰县','平潭综合实验区','福清市','长乐区'],
+               '厦门市':  ['思明区','海沧区','湖里区','集美区','同安区','翔安区'],
+               '泉州市':  ['鲤城区','丰泽区','洛江区','泉港区','惠安县','安溪县','永春县','德化县','金门县','石狮市','晋江市','南安市'],
+               '漳州市':  ['芗城区','龙文区','云霄县','漳浦县','诏安县','长泰区','东山县','南靖县','平和县','华安县','龙海区'] },
+  '山东省':  { '济南市':  ['历下区','市中区','槐荫区','天桥区','历城区','长清区','章丘区','济阳区','莱芜区','钢城区','平阴县','商河县'],
+               '青岛市':  ['市南区','市北区','黄岛区','崂山区','李沧区','城阳区','即墨区','胶州市','平度市','莱西市'],
+               '烟台市':  ['芝罘区','福山区','牟平区','莱山区','蓬莱区','龙口市','莱阳市','莱州市','招远市','栖霞市','海阳市'],
+               '潍坊市':  ['潍城区','寒亭区','坊子区','奎文区','青州市','诸城市','寿光市','安丘市','高密市','昌邑市','临朐县','昌乐县'] },
+  '河南省':  { '郑州市':  ['中原区','二七区','管城区','金水区','上街区','惠济区','中牟县','巩义市','荥阳市','新密市','新郑市','登封市'],
+               '洛阳市':  ['老城区','西工区','瀍河区','涧西区','偃师区','孟津区','新安县','栾川县','嵩县','汝阳县','宜阳县','洛宁县','伊川县'],
+               '开封市':  ['鼓楼区','顺河区','禹王台区','祥符区','杞县','通许县','尉氏县','兰考县'] },
+  '辽宁省':  { '沈阳市':  ['和平区','沈河区','大东区','皇姑区','铁西区','苏家屯区','浑南区','沈北新区','于洪区','辽中区','康平县','法库县','新民市'],
+               '大连市':  ['中山区','西岗区','沙河口区','甘井子区','旅顺口区','金州区','普兰店区','长海县','瓦房店市','庄河市'],
+               '鞍山市':  ['铁东区','铁西区','立山区','千山区','台安县','岫岩满族自治县','海城市'] },
+  '黑龙江省':{ '哈尔滨市':['道里区','道外区','南岗区','香坊区','平房区','松北区','呼兰区','阿城区','双城区','依兰县','方正县','宾县','巴彦县','木兰县','通河县','延寿县','尚志市','五常市'],
+               '齐齐哈尔市':['龙沙区','建华区','铁锋区','昂昂溪区','富拉尔基区','碾子山区','梅里斯达斡尔族区','龙江县','依安县','泰来县','甘南县','富裕县','克山县','克东县','拜泉县','讷河市'] },
+  '吉林省':  { '长春市':  ['南关区','宽城区','朝阳区','二道区','绿园区','双阳区','九台区','农安县','榆树市','德惠市'],
+               '吉林市':  ['昌邑区','龙潭区','船营区','丰满区','永吉县','蛟河市','桦甸市','舒兰市','磐石市'] },
+  '安徽省':  { '合肥市':  ['瑶海区','庐阳区','蜀山区','包河区','长丰县','肥东县','肥西县','庐江县','巢湖市'],
+               '芜湖市':  ['镜湖区','弋江区','鸠江区','湾沚区','繁昌区','南陵县','无为市'],
+               '马鞍山市':['花山区','雨山区','博望区','当涂县','含山县','和县'] },
+  '江西省':  { '南昌市':  ['东湖区','西湖区','青云谱区','青山湖区','新建区','红谷滩区','南昌县','安义县','进贤县'],
+               '赣州市':  ['章贡区','南康区','赣县区','信丰县','大余县','上犹县','崇义县','安远县','龙南市','定南县','全南县','宁都县','于都县','兴国县','会昌县','寻乌县','石城县','瑞金市'],
+               '九江市':  ['浔阳区','柴桑区','武宁县','修水县','永修县','德安县','都昌县','湖口县','彭泽县','瑞昌市','共青城市','庐山市'] },
+  '广西壮族自治区': { '南宁市': ['兴宁区','青秀区','江南区','西乡塘区','良庆区','邕宁区','武鸣区','隆安县','马山县','上林县','宾阳县','横州市'],
+                     '桂林市': ['秀峰区','叠彩区','象山区','七星区','雁山区','临桂区','阳朔县','灵川县','全州县','兴安县','永福县','灌阳县','龙胜各族自治县','资源县','平乐县','恭城瑶族自治县'],
+                     '柳州市': ['城中区','鱼峰区','柳南区','柳北区','柳江区','柳城县','鹿寨县','融安县','融水苗族自治县','三江侗族自治县'] },
+  '云南省':  { '昆明市':  ['五华区','盘龙区','官渡区','西山区','东川区','呈贡区','晋宁区','富民县','宜良县','石林彝族自治县','嵩明县','禄劝彝族苗族自治县','寻甸回族彝族自治县','安宁市'],
+               '大理白族自治州': ['大理市','漾濞彝族自治县','祥云县','宾川县','弥渡县','南涧彝族自治县','巍山彝族回族自治县','永平县','云龙县','洱源县','剑川县','鹤庆县'],
+               '丽江市':  ['古城区','玉龙纳西族自治县','永胜县','华坪县','宁蒗彝族自治县'] },
+  '贵州省':  { '贵阳市':  ['南明区','云岩区','花溪区','乌当区','白云区','观山湖区','开阳县','息烽县','修文县','清镇市'],
+               '遵义市':  ['红花岗区','汇川区','播州区','桐梓县','绥阳县','正安县','道真仡佬族苗族自治县','务川仡佬族苗族自治县','凤冈县','湄潭县','余庆县','习水县','赤水市','仁怀市'] },
+  '海南省':  { '海口市':  ['秀英区','龙华区','琼山区','美兰区'],
+               '三亚市':  ['海棠区','吉阳区','天涯区','崖州区'],
+               '三沙市':  ['西沙区','南沙区'],
+               '儋州市':  ['那大镇','和庆镇','南丰镇','大成镇','雅星镇','兰洋镇'] },
+  '河北省':  { '石家庄市':['长安区','桥西区','新华区','井陉矿区','裕华区','藁城区','鹿泉区','栾城区','井陉县','正定县','行唐县','灵寿县','高邑县','深泽县','赞皇县','无极县','平山县','元氏县','赵县','辛集市','晋州市','新乐市'],
+               '唐山市':  ['路南区','路北区','古冶区','开平区','丰南区','丰润区','曹妃甸区','滦州市','滦南县','乐亭县','迁西县','玉田县','遵化市','迁安市'],
+               '保定市':  ['竞秀区','莲池区','满城区','清苑区','徐水区','涞水县','阜平县','定兴县','唐县','高阳县','容城县','涞源县','望都县','安新县','易县','曲阳县','蠡县','顺平县','博野县','雄县','涿州市','定州市','安国市','高碑店市'] },
+  '山西省':  { '太原市':  ['小店区','迎泽区','杏花岭区','尖草坪区','万柏林区','晋源区','清徐县','阳曲县','娄烦县','古交市'],
+               '大同市':  ['平城区','云冈区','云州区','阳高县','天镇县','广灵县','灵丘县','浑源县','左云县'],
+               '长治市':  ['潞州区','上党区','屯留区','潞城区','襄垣县','平顺县','黎城县','壶关县','长子县','武乡县','沁县','沁源县'] },
+  '内蒙古自治区': { '呼和浩特市': ['回民区','玉泉区','赛罕区','新城区','土默特左旗','托克托县','和林格尔县','清水河县','武川县'],
+                   '包头市': ['东河区','昆都仑区','青山区','石拐区','白云鄂博矿区','九原区','土默特右旗','固阳县'] },
+  '新疆维吾尔自治区': { '乌鲁木齐市': ['天山区','沙依巴克区','新市区','水磨沟区','头屯河区','达坂城区','米东区','乌鲁木齐县'],
+                       '昌吉回族自治州': ['昌吉市','阜康市','呼图壁县','玛纳斯县','奇台县','吉木萨尔县','木垒哈萨克自治县'] },
+  '甘肃省':  { '兰州市':  ['城关区','七里河区','西固区','安宁区','红古区','永登县','皋兰县','榆中县'],
+               '天水市':  ['秦州区','麦积区','清水县','秦安县','甘谷县','武山县','张家川回族自治县'] },
+  '宁夏回族自治区': { '银川市': ['兴庆区','西夏区','金凤区','永宁县','贺兰县','灵武市'] },
+  '青海省':  { '西宁市':  ['城东区','城中区','城西区','城北区','大通回族土族自治县','湟中区','湟源县'] },
+  '西藏自治区': { '拉萨市': ['城关区','堆龙德庆区','达孜区','林周县','当雄县','尼木县','曲水县','墨竹工卡县'] },
+};
+
+// 主要城市坐标（confirmLocationMini 使用）
+const CITY_COORDS = {
+  '北京市':  [116.4074, 39.9042], '上海市':  [121.4737, 31.2304], '天津市':  [117.2010, 39.0842],
+  '重庆市':  [106.5516, 29.5630], '广州市':  [113.2644, 23.1291], '深圳市':  [114.0579, 22.5431],
+  '珠海市':  [113.5767, 22.2710], '东莞市':  [113.7518, 23.0207], '佛山市':  [113.1220, 23.0218],
+  '中山市':  [113.3924, 22.5176], '惠州市':  [114.4126, 23.0794], '汕头市':  [116.6820, 23.3541],
+  '杭州市':  [120.1551, 30.2741], '宁波市':  [121.5440, 29.8684], '温州市':  [120.6729, 28.0000],
+  '嘉兴市':  [120.7555, 30.7522], '湖州市':  [120.0864, 30.8703], '绍兴市':  [120.5800, 30.0300],
+  '金华市':  [119.6490, 29.0890], '舟山市':  [122.2070, 30.0360], '南京市':  [118.7969, 32.0603],
+  '苏州市':  [120.6197, 31.2990], '无锡市':  [120.3119, 31.4912], '常州市':  [119.9741, 31.7713],
+  '南通市':  [120.8943, 31.9813], '扬州市':  [119.4127, 32.3943], '镇江市':  [119.4528, 32.1680],
+  '成都市':  [104.0665, 30.5723], '绵阳市':  [104.7417, 31.4670], '德阳市':  [104.3979, 31.1275],
+  '武汉市':  [114.3054, 30.5928], '宜昌市':  [111.2864, 30.6920], '襄阳市':  [112.1221, 32.0084],
+  '西安市':  [108.9402, 34.3416], '咸阳市':  [108.7086, 34.3296], '宝鸡市':  [107.2370, 34.3635],
+  '长沙市':  [112.9388, 28.2278], '株洲市':  [113.1340, 27.8274], '湘潭市':  [112.9444, 27.8297],
+  '福州市':  [119.2965, 26.0745], '厦门市':  [118.0894, 24.4798], '泉州市':  [118.6760, 24.8740],
+  '漳州市':  [117.6470, 24.5130], '济南市':  [117.1209, 36.6512], '青岛市':  [120.3826, 36.0671],
+  '烟台市':  [121.3912, 37.5390], '潍坊市':  [119.1619, 36.7069], '郑州市':  [113.6254, 34.7466],
+  '洛阳市':  [112.4539, 34.6202], '开封市':  [114.3414, 34.7971], '沈阳市':  [123.4315, 41.8057],
+  '大连市':  [121.6147, 38.9140], '鞍山市':  [122.9950, 41.1100], '哈尔滨市':[126.5350, 45.8038],
+  '齐齐哈尔市':[123.9180, 47.3540],'长春市':  [125.3245, 43.8868], '吉林市':  [126.5500, 43.8400],
+  '合肥市':  [117.2272, 31.8206], '芜湖市':  [118.3760, 31.3330], '马鞍山市':[118.5070, 31.6700],
+  '南昌市':  [115.8581, 28.6829], '赣州市':  [114.9330, 25.8310], '九江市':  [115.9920, 29.7120],
+  '南宁市':  [108.3660, 22.8170], '桂林市':  [110.2990, 25.2740], '柳州市':  [109.4280, 24.3260],
+  '昆明市':  [102.7123, 25.0406], '大理市':  [100.2254, 25.5969], '丽江市':  [100.2270, 26.8550],
+  '贵阳市':  [106.6302, 26.6477], '遵义市':  [106.9272, 27.6998], '海口市':  [110.3312, 20.0317],
+  '三亚市':  [109.5116, 18.2528], '石家庄市':[114.5149, 38.0428], '唐山市':  [118.1800, 39.6300],
+  '保定市':  [115.4647, 38.8736], '太原市':  [112.5489, 37.8570], '大同市':  [113.2956, 40.0900],
+  '长治市':  [113.1163, 36.1959], '呼和浩特市':[111.7519,40.8415],'包头市':  [109.8400, 40.6500],
+  '乌鲁木齐市':[87.6168,43.8256], '兰州市':  [103.8343, 36.0611], '天水市':  [105.7240, 34.5790],
+  '银川市':  [106.2309, 38.4872], '西宁市':  [101.7782, 36.6171], '拉萨市':  [91.1409, 29.6500],
+};
+
 function toggleLocDropdown(e){
   const d = document.getElementById('locDropdown'); d.style.display = d.style.display==='none'?'block':'none';
   if (d.style.display==='block') populateMiniProvinces();
@@ -3588,8 +2711,10 @@ function confirmLocationMini(){
   const c=document.getElementById('selCityMini').value;
   const d=document.getElementById('selDistrictMini').value;
   if(!p){showToast('请先选择省份');return;}
-  currentLocation = { province:p, city:c||p, district:d||c||p, lat:31.2304, lng:121.4737 };
-  document.getElementById('locDisplay').textContent = currentLocation.city;
+  const cityKey = c || p;
+  const coords = CITY_COORDS[cityKey] || CITY_COORDS[p] || [121.4737, 31.2304];
+  currentLocation = { province:p, city:cityKey, district:d||cityKey, lat:coords[1], lng:coords[0] };
+  document.getElementById('locDisplay').textContent = d ? cityKey+'·'+d : cityKey;
   document.getElementById('locDropdown').style.display='none';
   renderPreviewMarkers();
   updateWeatherForLocation(currentLocation.city);
@@ -3665,27 +2790,129 @@ if (AMAP_KEY) {
       document.removeEventListener('DOMContentLoaded', initMapAndLocation);
       setTimeout(()=>{
         initPreviewMap();
+        initSidebarTTS();
+        bindHoverTTS();
         const locDisplay = document.getElementById('locDisplay');
         if (locDisplay) locDisplay.textContent = (currentLocation && currentLocation.city) || '定位中';
         const selProvince = document.getElementById('selProvinceMini');
         const selCity = document.getElementById('selCityMini');
         if (selProvince) selProvince.addEventListener('change', loadCitiesMini);
         if (selCity) selCity.addEventListener('change', loadDistrictsMini);
+        // 恢復友好模式設定（localStorage）
+        restoreFriendlyMode();
       }, 100);
+            // slogan 自动轮播（先淡出旧的，1秒后淡入新的）
+            try{
+              const slogans = document.querySelectorAll('#slogan-wrap .slogan-item');
+              let si = 0;
+              if (slogans.length) slogans[0].classList.add('active');
+              setInterval(()=>{
+                slogans[si].classList.remove('active');
+                const next = (si + 1) % slogans.length;
+                setTimeout(()=>{
+                  slogans[next].classList.add('active');
+                  si = next;
+                }, 600);
+              }, 2000);
+            }catch(e){}
     });
   } else {
     // DOM 已加载
     setTimeout(()=>{
       initPreviewMap();
+      initSidebarTTS();
+      bindHoverTTS();
       const locDisplay = document.getElementById('locDisplay');
       if (locDisplay) locDisplay.textContent = (currentLocation && currentLocation.city) || '定位中';
       const selProvince = document.getElementById('selProvinceMini');
       const selCity = document.getElementById('selCityMini');
       if (selProvince) selProvince.addEventListener('change', loadCitiesMini);
       if (selCity) selCity.addEventListener('change', loadDistrictsMini);
+      // 恢復友好模式設定（localStorage）
+      restoreFriendlyMode();
+      try{
+        const slogans = document.querySelectorAll('#slogan-wrap .slogan-item');
+        let si = 0;
+        setInterval(()=>{
+          slogans[si].classList.remove('active');
+          const next = (si + 1) % slogans.length;
+          setTimeout(()=>{ slogans[next].classList.add('active'); si = next; }, 600);
+        }, 2000);
+      }catch(e){}
     }, 100);
   }
 }
+
+// ===== 历史记录（localStorage） =====
+function loadHistory() {
+  try { return JSON.parse(localStorage.getItem('eg_history') || '[]'); } catch(e){ return []; }
+}
+
+function saveHistory(items) {
+  try { localStorage.setItem('eg_history', JSON.stringify(items)); } catch(e){ console.warn(e); }
+}
+
+function saveHistoryPlan(plan) {
+  if (!plan || !plan.items) return;
+  const items = loadHistory();
+  const now = new Date();
+  const title = plan.items[0] ? plan.items[0].name : (plan.plan && plan.plan.summary) || '行程';
+  const summary = (plan.items.slice(0,3).map(it=>it.name).join(' · '));
+  const entry = { id: Date.now(), date: now.toISOString(), title: title, summary: summary, people: (plan.intent && plan.intent.adults) || 1, plan: plan };
+  items.unshift(entry);
+  if (items.length > 50) items.pop();
+  saveHistory(items);
+  renderHistorySidebar();
+}
+
+function toggleHistorySidebar(){
+  const el = document.getElementById('historySidebar');
+  if (!el) return;
+  if (el.style.left === '0px') el.style.left = '-360px'; else el.style.left = '0px';
+}
+function escHtml(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function renderHistorySidebar(){
+  const list = document.getElementById('historyList');
+  if (!list) return;
+  const items = loadHistory();
+  list.innerHTML = items.map(it=>{
+    const d = new Date(it.date);
+    const dateStr = d.toLocaleString();
+    return `<div style="padding:10px;border:1px solid var(--border);border-radius:8px;display:flex;flex-direction:column;gap:6px;">
+      <div style="display:flex;justify-content:space-between;align-items:center"><strong style="font-size:14px">${escHtml(it.title)}</strong><span style="font-size:12px;color:var(--text-3)">${dateStr}</span></div>
+      <div style="font-size:13px;color:var(--text-3)">${escHtml(it.summary)}</div>
+      <div style="display:flex;gap:8px;margin-top:6px"><button class="nav-btn" onclick='loadHistoryItem(${it.id})'>查看</button><button class="nav-btn" onclick='deleteHistoryItem(${it.id})'>删除</button></div>
+    </div>`;
+  }).join('');
+}
+
+function loadHistoryItem(id){
+  const items = loadHistory();
+  const it = items.find(x=>x.id===id);
+  if (!it) return showToast('历史项不存在');
+  // 只读恢复：在聊天区域显示方案卡片但不允许修改
+  currentPlan = it.plan;
+  lastPlanText = generateShareTextFromPlan(currentPlan.items, currentPlan.intent);
+  showPlanCards(currentPlan.items, currentPlan.plan);
+  updateTimelineFromPlan(currentPlan.items);
+  toggleHistorySidebar();
+}
+
+function deleteHistoryItem(id){
+  let items = loadHistory();
+  items = items.filter(x=>x.id!==id);
+  saveHistory(items);
+  renderHistorySidebar();
+}
+
+function newChat(){
+  // 不影響歷史，清空對話並保留歷史
+  clearChat();
+  toggleHistorySidebar();
+}
+
+// 初始化歷史側欄
+document.addEventListener('DOMContentLoaded', function(){ renderHistorySidebar(); });
 </script>
 </body>
 </html>
