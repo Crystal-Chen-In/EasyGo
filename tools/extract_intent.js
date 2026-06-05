@@ -256,6 +256,9 @@ function ruleBasedFallback(text) {
   if (/展览|博物馆|美术馆/.test(t)) preferences.push('展览');
   if (/购物|逛街/.test(t)) preferences.push('购物');
   if (/自然|公园|爬山/.test(t)) preferences.push('户外');
+  if (/下午茶|甜品|咖啡|蛋糕/.test(t)) preferences.push('下午茶');
+  if (/电影|影院|观影|看电影/.test(t)) preferences.push('电影');
+  if (/酒店|住宿|住酒店|民宿/.test(t)) preferences.push('酒店');
 
   // special_needs
   const special_needs = [];
