@@ -46,6 +46,18 @@ function sharePlan(planItems, intent, bookingResult) {
   }
 
   // ── 微信格式 ────────────────────────────────────────────────
+  if (!costNote) {
+    var planCost = planItems.reduce(function(sum, item) {
+      if (item.category === 'restaurant') return sum + (item.price_per_person || 0) * adults;
+      if (item.category === 'activity')   return sum + (item.ticket_price || 0) * headcount;
+      return sum;
+    }, 0);
+    if (planCost > 0) costNote = '💵 人均约 ¥' + Math.round(planCost / headcount);
+  }
+  var statusNote = bookingResult && bookingResult.actions
+    ? '✅ 已确认执行，可按此行程出发'
+    : '🕒 待大家确认，确认后再执行预约/购票';
+
   var wechatLines = [
     '📍 今日出行计划 | ' + headcount + '人 | ' + startTime + '-' + endTime,
     ''
@@ -69,6 +81,7 @@ function sharePlan(planItems, intent, bookingResult) {
   });
 
   if (costNote) wechatLines.push(costNote);
+  wechatLines.push(statusNote);
   wechatLines.push('✨ 美团出行规划 · 祝玩得开心！');
 
   // ── TTS 朗读格式 ──────────────────────────────────────────

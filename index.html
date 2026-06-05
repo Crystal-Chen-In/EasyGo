@@ -1246,6 +1246,7 @@ async function sendMessage() {
   updateTimelineFromPlan(planItems);
   lastPlanText = generateShareTextFromPlan(planItems, intent);
   currentPlan  = { items: planItems, plan: plan, intent: intent };
+  refreshShareData();
   // 保存至历史（localStorage）
   try { saveHistoryPlan(currentPlan); } catch(e) { console.warn('saveHistoryPlan error', e); }
 
@@ -1521,9 +1522,7 @@ async function confirmPlan() {
   });
 
   // ── Tool 6: sharePlan ──────────────────────────────────────
-  var share = sharePlan(planItems, intent, bookingResult);
-  lastPlanText = share.wechat;
-  lastShareData = share;
+  refreshShareData(bookingResult);
 
   // 完成提示
   var note = document.createElement('div');
@@ -1545,8 +1544,25 @@ function generateShareText(scenario) {
 }
 
 // ── 分享弹窗（升级版）────────────────────────────────────────
+function refreshShareData(bookingResult) {
+  if (!currentPlan || !currentPlan.items || currentPlan.items.length === 0) {
+    lastShareData = null;
+    lastPlanText = '';
+    return null;
+  }
+
+  var share = sharePlan(
+    currentPlan.items,
+    currentPlan.intent || {},
+    bookingResult || null
+  );
+  lastShareData = share;
+  lastPlanText = share.wechat || generateShareTextFromPlan(currentPlan.items, currentPlan.intent);
+  return share;
+}
+
 function showShareModal() {
-  var share = lastShareData || null;
+  var share = lastShareData || refreshShareData();
   var text = share ? share.wechat : '暂无行程，请先告诉我您的需求开始规划。';
   if (share && document.getElementById('share-title')) {
     document.getElementById('share-title').textContent = '📤 ' + (share.title || '分享行程');
@@ -1856,6 +1872,7 @@ function clearChat() {
   chatArea.innerHTML = '';
   currentPlan = null;
   lastPlanText = '';
+  lastShareData = null;
   document.getElementById('timeline').innerHTML = '<div class="tl-item"><div class="tl-dot upcoming"></div><div class="tl-time">等待规划中…</div><div class="tl-name" style="color:var(--text-4);">告诉我您的需求开始规划</div></div>';
   addMessage('ai', '好的，让我们重新开始！请告诉我您想怎么安排今天的行程？😊');
 }
@@ -2877,6 +2894,7 @@ function loadHistoryItem(id){
   // 只读恢复：在聊天区域显示方案卡片但不允许修改
   currentPlan = it.plan;
   lastPlanText = generateShareTextFromPlan(currentPlan.items, currentPlan.intent);
+  refreshShareData();
   showPlanCards(currentPlan.items, currentPlan.plan);
   updateTimelineFromPlan(currentPlan.items);
   toggleHistorySidebar();
