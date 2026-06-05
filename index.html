@@ -44,6 +44,7 @@
     color: var(--text-1);
     line-height: 1.7;
     min-height: 100vh;
+    overflow-x: hidden;
   }
 
   /* NAV */
@@ -96,12 +97,14 @@
 
   /* LAYOUT */
   .app-layout {
-    max-width: 1280px; margin: 0 auto;
-    display: grid; grid-template-columns: 1fr 400px;
+    width: 100%;
+    max-width: none;
+    margin: 0;
+    display: grid; grid-template-columns: minmax(0, 1fr) clamp(360px, 24vw, 460px);
     gap: 0; min-height: calc(100vh - 60px);
   }
   @media (max-width: 960px) {
-    .app-layout { grid-template-columns: 1fr; }
+    .app-layout { grid-template-columns: minmax(0, 1fr); }
     .sidebar { display: none; }
   }
 
