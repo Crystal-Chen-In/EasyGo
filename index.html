@@ -1958,27 +1958,11 @@ function speakLastPlan() {
   else speakText('您还没有规划行程，请先告诉我您想怎么玩。');
 }
 
-// ── KEYWORD FILTER ─────────────────────────────────────────────────
-// 关键字 → ACTIVITIES_DB / RESTAURANTS_DB 中对应的 tags
-const KW_TAG_MAP = {
-  '剧院':     ['音乐','演出','表演','剧院'],
-  '餐厅':     ['餐厅','美食','小吃','本帮菜','烧烤','火锅'],
-  '民宿':     ['民宿','酒店','住宿','精品酒店'],
-  '游乐场':   ['游乐','亲子','互动','刺激','儿童'],
-  '商场':     ['购物','商场','mall','雨天'],
-  '俱乐部':   ['夜生活','俱乐部','酒吧','livehouse'],
-  '亲子':     ['亲子','儿童','互动','教育','科普'],
-  '展览':     ['展览','艺术','当代艺术','书画','文艺'],
-  'citywalk': ['citywalk','历史建筑','梧桐区','法式','街区'],
-  '公园':     ['公园','户外','草坪','骑行','森林'],
-  '咖啡':     ['咖啡','文创','书店','下午茶'],
-};
-
 /**
  * 点击关键字按钮：
  * 1. 切换 active 状态
  * 2. 追加 / 移除输入框中的关键字
- * 3. 从 ACTIVITIES_DB 预筛选匹配景点，把名称写入 placeholder 提示用户
+ * 3. 通过 tools/search_activities.js 预筛选匹配景点，把名称写入 placeholder 提示用户
  */
 function appendKeyword(btn, keyword) {
   const input = document.getElementById('main-input');
@@ -1997,16 +1981,12 @@ function appendKeyword(btn, keyword) {
 
   input.focus();
 
-  // 预筛选提示（基于 ACTIVITIES_DB 的 tags）
-  const hasDB = typeof ACTIVITIES_DB !== 'undefined';
+  // 预筛选提示（基于 tools/search_activities.js 中的 tag 规则）
+  const canMatch = typeof matchActivitiesByKeywords === 'function';
   const activeKws = [...document.querySelectorAll('.kw-btn.active')].map(b => b.getAttribute('onclick').match(/'([^']+)'/)?.[1]).filter(Boolean);
 
-  if (hasDB && activeKws.length > 0) {
-    // 收集所有激活关键字对应的 tag 集合
-    const allTags = activeKws.flatMap(k => KW_TAG_MAP[k] || [k]);
-    const matched = ACTIVITIES_DB.filter(a =>
-      allTags.some(tag => a.tags.some(t => t.includes(tag) || tag.includes(t)))
-    );
+  if (canMatch && activeKws.length > 0) {
+    const matched = matchActivitiesByKeywords(activeKws);
     if (matched.length > 0) {
       const names = matched.slice(0, 3).map(a => a.name).join('、');
       input.placeholder = `已筛选「${activeKws.join('+')}」相关：${names}${matched.length > 3 ? ' 等' + matched.length + '处' : ''}，继续补充其他需求…`;
@@ -2226,7 +2206,8 @@ function renderPreviewMarkers() {
   _previewMarkers.forEach(m=>m.setMap(null)); _previewMarkers = [];
   // filter activities by city match or small distance
   const city = (window.currentLocation && window.currentLocation.city) || '';
-  const candidates = ACTIVITIES_DB.filter(a => {
+  const activityDb = window.ACTIVITIES_DB || [];
+  const candidates = activityDb.filter(a => {
     if (!city) return true;
     return (a.address && a.address.includes(city)) || (a.distance_km && a.distance_km <= 15);
   }).slice(0,8);
@@ -2564,8 +2545,8 @@ function planRouteFromSuggestion(){
   // ensure currentPlan exists; if not, try to build from plan cards in DOM
   if(!currentPlan || !currentPlan.items || currentPlan.items.length<2){
     // try to build from plan cards if present
-    // fallback: use first two activities from ACTIVITIES_DB
-    currentPlan = { items: ACTIVITIES_DB.slice(0,3).map(a=>({ name:a.name, address:a.address })) };
+    // fallback: use first activities exposed by tools/search_activities.js
+    currentPlan = { items: (window.ACTIVITIES_DB || []).slice(0,3).map(a=>({ name:a.name, address:a.address })) };
   }
   planRouteOnMap();
 }

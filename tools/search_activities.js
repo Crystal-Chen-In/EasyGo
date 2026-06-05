@@ -470,6 +470,42 @@ const SCORE_WEIGHTS = {
   distance: 0.20,    preference: 0.15, child_safety: 0.05
 };
 
+// Keyword chips in index.html use this helper for activity suggestions.
+// Keeping the tag map here avoids duplicating tool data rules in the page layer.
+const ACTIVITY_KEYWORD_TAG_MAP = {
+  '剧院': ['音乐','演出','表演','剧院'],
+  '餐厅': ['餐厅','美食','小吃','本帮菜','烧烤','火锅'],
+  '民宿': ['民宿','酒店','住宿','精品酒店'],
+  '游乐场': ['游乐','亲子','互动','刺激','儿童'],
+  '商场': ['购物','商场','mall','雨天'],
+  '俱乐部': ['夜生活','俱乐部','酒吧','livehouse'],
+  '亲子': ['亲子','儿童','互动','教育','科普'],
+  '展览': ['展览','艺术','当代艺术','书画','文艺'],
+  'citywalk': ['citywalk','历史建筑','梧桐区','法式','街区'],
+  '公园': ['公园','户外','草坪','骑行','森林'],
+  '咖啡': ['咖啡','文创','书店','下午茶'],
+  '电影院': ['电影','室内','文化','雨天'],
+  '温泉': ['温泉','放松','休闲','室内'],
+  '戏院': ['音乐','演出','表演','戏院','剧院'],
+  '酒楼': ['餐厅','美食','本帮菜','酒楼','宴请'],
+  '游乐园': ['游乐','亲子','互动','刺激','儿童'],
+  '购物中心': ['购物','商场','mall','雨天'],
+  'KTV': ['KTV','唱歌','室内','聚会'],
+  '火锅': ['火锅','餐厅','美食','聚会'],
+  '游泳': ['游泳','运动','亲子','室内'],
+  '保龄球': ['保龄球','运动','室内','聚会'],
+  '亲子乐园': ['亲子','儿童','互动','游乐','乐园']
+};
+
+function matchActivitiesByKeywords(keywords = []) {
+  const list = Array.isArray(keywords) ? keywords : [];
+  if (list.length === 0) return [];
+  const allTags = list.flatMap(k => ACTIVITY_KEYWORD_TAG_MAP[k] || [k]);
+  return ACTIVITIES_DB.filter(a =>
+    allTags.some(tag => a.tags.some(t => t.includes(tag) || tag.includes(t)))
+  );
+}
+
 async function searchActivities(intent, options = {}) {
   const { limit = 6, minRating = 4.0, mockDelayMs = 200 } = options;
   await new Promise(r => setTimeout(r, mockDelayMs));
@@ -603,7 +639,10 @@ function getFallbackActivities(intent) {
 }
 
 if (typeof module !== 'undefined' && module.exports) {
-  module.exports = { searchActivities, computeScore, formatActivity, ACTIVITIES_DB };
+  module.exports = { searchActivities, computeScore, formatActivity, matchActivitiesByKeywords, ACTIVITIES_DB, ACTIVITY_KEYWORD_TAG_MAP };
 } else {
+  window.ACTIVITIES_DB = ACTIVITIES_DB;
+  window.ACTIVITY_KEYWORD_TAG_MAP = ACTIVITY_KEYWORD_TAG_MAP;
   window.searchActivities = searchActivities;
+  window.matchActivitiesByKeywords = matchActivitiesByKeywords;
 }
