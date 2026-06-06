@@ -1,4 +1,4 @@
-# EasyGo — 美团·周末活动规划 Agent (v2.0) ✈️
+# EasyGo — 美团·周末活动规划 Agent 
 
 EasyGo 是一个轻量、高效的本地周末出行规划智能助手（Agent）。该项目旨在为用户秒级规划 **4-6 小时** 的本地出行方案，涵盖“休闲活动 → 餐厅预约 → 后续安排”的完整链路。系统集成了高德地图 API、心知天气 API，并深度结合了智谱 GLM-4 与 DeepSeek 大语言模型，具备多轮意图追问、智能行程编排、模拟预订下单、二维码分享及长辈友好（无障碍语音）模式等核心能力。
 
@@ -9,7 +9,7 @@ slogan:no more waiting,just go
 
 1. **智能意图解析 (`extract_intent.js`)**
    * 支持智谱 GLM-4-Flash 与 DeepSeek-Chat 双模型。
-   * 支持针对缺失关键字段（如出行人数 `adults`、出行人群 `group_type`）进行最多 2 轮的智能追问；超时或未配置 Key 时自动降级为高效的正则与关键词规则引擎（`ruleBasedFallback`）。
+   * 支持针对缺失关键字段（如出行人数 `adults`、出行人群 `group_type`）进行最多 2 轮的智能追问；超时或未配置 Key 时自动主动激活离线规则引擎，并告知用户AI 服务暂时繁忙，已用智能规则快速生成。
 2. **候选搜索与过滤 (`search_activities.js` & `search_restaurants.js`)**
    * 根据出行半径（`radius_km`）、人群类型（如是否带小孩、是否有长辈）、健康饮食需求（少油少盐低卡等）对本地活动、景点与餐饮资源进行精细化过滤与推荐。
 3. **AI 行程智能编排 (`plan_itinerary.js`)**
@@ -21,7 +21,6 @@ slogan:no more waiting,just go
    * 集成高德地图 JS API，支持地图卡片预览、路径规划（公交、驾车、步行）及大图全屏展示。
 6. **实况天气与预报 (`get_weather.js`)**
    * 调用心知天气（Seniverse）API，实时渲染当前地点的天气现象代码、匹配官方图示以及气温。
-   * 点击天气卡片可在底部展开展示**未来 5 小时**的细粒度天气趋势。
 7. **无障碍友好模式 (`index.html`)**
    * 专为老年人与视障群体设计，一键切换“友好模式”：界面字体放大、按钮高亮、高对比度。
    * 内置语音辅助播报（基于浏览器原生 Web Speech API），支持点击消息气泡/时间轴即时朗读，并配有暂停语音控制键。
@@ -64,7 +63,7 @@ flowchart TD
 EasyGo/
 ├── APIkey_example.env           # 本地敏感 Key 配置文件，需要自行填入API KEY
 ├── env-loader.js                # 环境加载编译脚本 (Node.js)
-├── config.js                    # 根据 .env 自动生成的全局配置 (由 env-loader.js 输出)
+├── config.js                    # 根据 .env 生成的全局配置 (由 env-loader.js 输出)
 ├── index.html                   # 主应用入口及 UI 交互控制中心
 ├── LICENSE                      # 许可证文件
 ├── README.md                    # 项目说明文档
@@ -82,13 +81,13 @@ EasyGo/
 
 ## ⚙️ 环境配置与编译
 
-为了防止 API Key 泄露至前端公共代码库，项目设计了独立的 `.env` 环境变量存储和编译机制。
+为了防止 API Key 泄露至前端公共代码库，项目设计了独立的`.env`环境变量存储和编译机制。
 
 ### 1. 配置环境变量
 
-在 `EasyGo` 目录下新建（或修改）`.env` 文件，填入相关的 API 密钥：
+在 `EasyGo` 目录下修改`.env`文件，填入相关的 API 密钥：
 
-```env
+```
 # 智谱 AI (GLM-4) API Key
 VITE_ZHIPU_API_KEY=your_zhipu_api_key
 
