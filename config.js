@@ -1,18 +1,18 @@
 window.__ENV__ = {
-  "VITE_ZHIPU_API_KEY": "633e0081d910482bb6605c734912d56f.LodZew7Tw6NqDw9e",
-  "VITE_DEEPSEEK_API_KEY": "sk-d47a8e30b8bb43a692777f8d70e6b8c2",
-  "VITE_LONGCAT_API_KEY": "ak_2Kc7hj5KS5gQ97H26Z2Yu8Mr1Sh9W",
-  "VITE_AMAP_KEY": "88c4911767fc5204604a7a0c85cd13ba",
-  "VITE_AMAP_SECURITY_JS_CODE": "3265dcffd5955de6a967df49e2d79ebb",
-  "VITE_WEATHER_API_KEY": "SjCNqoRJjxzSQkw1R",
+  "VITE_ZHIPU_API_KEY": "your_zhipu_api_key",
+  "VITE_DEEPSEEK_API_KEY": "your_deepseek_api_key",
+  "VITE_LONGCAT_API_KEY": "your_longcat_api_key",
+  "VITE_AMAP_KEY": "your_amap_js_key",
+  "VITE_AMAP_SECURITY_JS_CODE": "your_amap_security_code",
+  "VITE_WEATHER_API_KEY": "your_weather_api_key",
   "VITE_APP_NAME": "EASYGO",
   "VITE_APP_VERSION": "v2.0"
 };
 window.APP_CONFIG = {
-  "ZHIPU_API_KEY": "633e0081d910482bb6605c734912d56f.LodZew7Tw6NqDw9e",
-  "DEEPSEEK_API_KEY": "sk-d47a8e30b8bb43a692777f8d70e6b8c2",
-  "LONGCAT_API_KEY": "ak_2Kc7hj5KS5gQ97H26Z2Yu8Mr1Sh9W",
-  "AMAP_KEY": "88c4911767fc5204604a7a0c85cd13ba",
-  "AMAP_SECURITY_JS_CODE": "3265dcffd5955de6a967df49e2d79ebb",
-  "WEATHER_API_KEY": "SjCNqoRJjxzSQkw1R"
+  "ZHIPU_API_KEY": "your_zhipu_api_key",
+  "DEEPSEEK_API_KEY": "your_deepseek_api_key",
+  "LONGCAT_API_KEY": "your_longcat_api_key",
+  "AMAP_KEY": "your_amap_js_key",
+  "AMAP_SECURITY_JS_CODE": "your_amap_security_code",
+  "WEATHER_API_KEY": "your_weather_api_key"
 };
